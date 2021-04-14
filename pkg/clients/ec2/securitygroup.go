@@ -1,17 +1,11 @@
 package ec2
 
 import (
-	"encoding/json"
 	"sort"
-	"strings"
 
 	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	"github.com/crossplane/provider-aws/apis/ec2/v1beta1"
 	aws "github.com/crossplane/provider-aws/pkg/clients"
@@ -33,6 +27,7 @@ type SecurityGroupClient interface {
 	DescribeSecurityGroupsRequest(input *ec2.DescribeSecurityGroupsInput) ec2.DescribeSecurityGroupsRequest
 	AuthorizeSecurityGroupIngressRequest(input *ec2.AuthorizeSecurityGroupIngressInput) ec2.AuthorizeSecurityGroupIngressRequest
 	AuthorizeSecurityGroupEgressRequest(input *ec2.AuthorizeSecurityGroupEgressInput) ec2.AuthorizeSecurityGroupEgressRequest
+	RevokeSecurityGroupIngressRequest(input *ec2.RevokeSecurityGroupIngressInput) ec2.RevokeSecurityGroupIngressRequest
 	RevokeSecurityGroupEgressRequest(input *ec2.RevokeSecurityGroupEgressInput) ec2.RevokeSecurityGroupEgressRequest
 	CreateTagsRequest(input *ec2.CreateTagsInput) ec2.CreateTagsRequest
 	DeleteTagsRequest(input *ec2.DeleteTagsInput) ec2.DeleteTagsRequest
@@ -264,104 +259,21 @@ func LateInitializeIPPermissions(spec []v1beta1.IPPermission, o []ec2.IpPermissi
 	return spec
 }
 
-// CreateSGPatch creates a *v1beta1.SecurityGroupParameters that has only the changed
-// values between the target *v1beta1.SecurityGroupParameters and the current
-// *ec2.SecurityGroup
-func CreateSGPatch(in ec2.SecurityGroup, target v1beta1.SecurityGroupParameters) (*v1beta1.SecurityGroupParameters, error) { // nolint:gocyclo
-	targetCopy := *target.DeepCopy()
-	v1beta1.SortTags(targetCopy.Tags, in.Tags)
-	currentParams := &v1beta1.SecurityGroupParameters{
-		Description: awsclients.StringValue(in.Description),
-		GroupName:   awsclients.StringValue(in.GroupName),
-		VPCID:       in.VpcId,
-	}
-	currentParams.Tags = v1beta1.BuildFromEC2Tags(in.Tags)
-	currentParams.Ingress = GenerateIPPermissions(in.IpPermissions)
-	currentParams.Egress = GenerateIPPermissions(in.IpPermissionsEgress)
-	// NOTE(muvaf): Sending -1 as FromPort or ToPort is valid but the returned
-	// object does not have that value. So, in case we have sent -1, we assume
-	// that the returned value is also -1 in case if it's nil.
-	// See the following about usage of -1
-	// https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-security-group-egress.html
-	mOne := int64(-1)
-	for i, spec := range targetCopy.Egress {
-		if len(currentParams.Egress) <= i {
-			break
-		}
-		if awsgo.Int64Value(spec.FromPort) == mOne {
-			currentParams.Egress[i].FromPort = awsclients.LateInitializeInt64Ptr(currentParams.Egress[i].FromPort, &mOne)
-		}
-		if awsgo.Int64Value(spec.ToPort) == mOne {
-			currentParams.Egress[i].ToPort = awsclients.LateInitializeInt64Ptr(currentParams.Egress[i].ToPort, &mOne)
-		}
-	}
-	// Same happens with VPCID in egress user group id pairs. The value of that
-	// field is not returned from AWS.
-	for i, ingress := range currentParams.Ingress {
-		for j, pair := range ingress.UserIDGroupPairs {
-			if awsclients.StringValue(pair.VPCID) == "" && len(targetCopy.Ingress) > i && len(targetCopy.Ingress[i].UserIDGroupPairs) > j {
-				currentParams.Ingress[i].UserIDGroupPairs[j].VPCID = targetCopy.Ingress[i].UserIDGroupPairs[j].VPCID
-			}
-		}
+// IsSGUpToDate checks if the observed security group is up to equal to the desired state
+func IsSGUpToDate(sg v1beta1.SecurityGroupParameters, observed ec2.SecurityGroup) bool {
+	if !CompareTags(sg.Tags, observed.Tags) {
+		return false
 	}
 
-	for i, spec := range targetCopy.Egress {
-		for j := range spec.UserIDGroupPairs {
-			targetCopy.Egress[i].UserIDGroupPairs[j].ClearRefSelectors()
-		}
+	add, remove := DiffPermissions(GenerateEC2Permissions(sg.Ingress), observed.IpPermissions)
+	if len(add) > 0 || len(remove) > 0 {
+		return false
 	}
 
-	for i, spec := range targetCopy.Ingress {
-		for j := range spec.UserIDGroupPairs {
-			targetCopy.Ingress[i].UserIDGroupPairs[j].ClearRefSelectors()
-		}
+	add, remove = DiffPermissions(GenerateEC2Permissions(sg.Egress), observed.IpPermissionsEgress)
+	if len(add) > 0 || len(remove) > 0 {
+		return false
 	}
 
-	sort.Slice(targetCopy.Egress, func(i, j int) bool {
-		return aws.Int64Value(targetCopy.Egress[i].FromPort) < aws.Int64Value(targetCopy.Egress[j].FromPort)
-	})
-	sort.Slice(targetCopy.Ingress, func(i, j int) bool {
-		return aws.Int64Value(targetCopy.Ingress[i].FromPort) < aws.Int64Value(targetCopy.Ingress[j].FromPort)
-	})
-
-	jsonPatch, err := awsclients.CreateJSONPatch(*currentParams, targetCopy)
-	if err != nil {
-		return nil, err
-	}
-	patch := &v1beta1.SecurityGroupParameters{}
-	if err := json.Unmarshal(jsonPatch, patch); err != nil {
-		return nil, err
-	}
-
-	return patch, nil
-}
-
-// IsSGUpToDate checks whether there is a change in any of the modifiable fields.
-func IsSGUpToDate(p v1beta1.SecurityGroupParameters, sg ec2.SecurityGroup) (bool, error) {
-	patch, err := CreateSGPatch(sg, p)
-	if err != nil {
-		return false, err
-	}
-	return cmp.Equal(&v1beta1.SecurityGroupParameters{}, patch,
-		cmpopts.IgnoreTypes(&xpv1.Reference{}, &xpv1.Selector{}),
-		cmpopts.IgnoreFields(v1beta1.SecurityGroupParameters{}, "Region"),
-		InsensitiveCases()), nil
-}
-
-// TODO(muvaf): We needed this for IPProtocol field; even if you send "TCP", AWS
-// returns "tcp". However, this cmp.Option is probably useful for other providers,
-// too. Consider making it part of crossplane-runtime.
-
-// InsensitiveCases ignores the case sensitivity for string and *string types.
-func InsensitiveCases() cmp.Option {
-	return cmp.Options{
-		cmp.FilterValues(func(_, _ interface{}) bool {
-			return true
-		}, cmp.Comparer(strings.EqualFold)),
-		cmp.FilterValues(func(_, _ interface{}) bool {
-			return true
-		}, cmp.Comparer(func(x, y *string) bool {
-			return strings.EqualFold(awsclients.StringValue(x), awsclients.StringValue(y))
-		})),
-	}
+	return true
 }

@@ -117,7 +117,7 @@ func TestIsSGUpToDate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, _ := IsSGUpToDate(tc.args.p, tc.args.sg)
+			got := IsSGUpToDate(tc.args.p, tc.args.sg)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
@@ -155,98 +155,6 @@ func TestGenerateSGObservation(t *testing.T) {
 			r := GenerateSGObservation(tc.in)
 			if diff := cmp.Diff(r, tc.out); diff != "" {
 				t.Errorf("GenerateNetworkObservation(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestCreateSGPatch(t *testing.T) {
-	type args struct {
-		sg ec2.SecurityGroup
-		p  *v1beta1.SecurityGroupParameters
-	}
-
-	type want struct {
-		patch *v1beta1.SecurityGroupParameters
-	}
-
-	cases := map[string]struct {
-		args
-		want
-	}{
-		"SameFields": {
-			args: args{
-				sg: ec2.SecurityGroup{
-					Description:         aws.String(sgDesc),
-					GroupName:           aws.String(sgName),
-					IpPermissions:       sgIPPermission(80),
-					IpPermissionsEgress: sgIPPermission(80),
-					VpcId:               aws.String(sgVpc),
-				},
-				p: &v1beta1.SecurityGroupParameters{
-					Description: sgDesc,
-					GroupName:   sgName,
-					Egress:      specIPPermsision(80),
-					Ingress:     specIPPermsision(80),
-					VPCID:       aws.String(sgVpc),
-				},
-			},
-			want: want{
-				patch: &v1beta1.SecurityGroupParameters{},
-			},
-		},
-		"SameFieldsNilPort": {
-			args: args{
-				sg: ec2.SecurityGroup{
-					Description:         aws.String(sgDesc),
-					GroupName:           aws.String(sgName),
-					IpPermissions:       nil,
-					IpPermissionsEgress: append(sgIPPermission(80), ec2.IpPermission{IpProtocol: aws.String("-1")}),
-					VpcId:               aws.String(sgVpc),
-				},
-				p: &v1beta1.SecurityGroupParameters{
-					Description: sgDesc,
-					GroupName:   sgName,
-					Egress:      append(specIPPermsision(80), v1beta1.IPPermission{IPProtocol: "-1"}),
-					Ingress:     nil,
-					VPCID:       aws.String(sgVpc),
-				},
-			},
-			want: want{
-				patch: &v1beta1.SecurityGroupParameters{},
-			},
-		},
-		"DifferentFields": {
-			args: args{
-				sg: ec2.SecurityGroup{
-					Description:         aws.String(sgDesc),
-					GroupName:           aws.String(sgName),
-					IpPermissions:       sgIPPermission(80),
-					IpPermissionsEgress: sgIPPermission(80),
-					VpcId:               aws.String(sgVpc),
-				},
-				p: &v1beta1.SecurityGroupParameters{
-					Description: sgDesc,
-					GroupName:   sgName,
-					Egress:      specIPPermsision(100),
-					Ingress:     specIPPermsision(100),
-					VPCID:       aws.String(sgVpc),
-				},
-			},
-			want: want{
-				patch: &v1beta1.SecurityGroupParameters{
-					Egress:  specIPPermsision(100),
-					Ingress: specIPPermsision(100),
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			result, _ := CreateSGPatch(tc.args.sg, *tc.args.p)
-			if diff := cmp.Diff(tc.want.patch, result); diff != "" {
-				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
 	}
