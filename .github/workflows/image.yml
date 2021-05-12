@@ -30,4 +30,4 @@ jobs:
         env:
           VERSION: "0.18-sb1-1"
           CHANNEL: "master"
-          DOCKER_REGISTRY: ghcr.io/chlunde
+          DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
