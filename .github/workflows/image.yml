@@ -28,6 +28,6 @@ jobs:
       - name: Promote Artifacts
         run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/} PLATFORMS=linux_amd64
         env:
-          VERSION: "0.18-sb1-1"
+          VERSION: "0.18-sb1-2"
           CHANNEL: "master"
           DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
