@@ -91,6 +91,9 @@ func (si stringInterner) internPrefixListID(i awsec2.PrefixListId) awsec2.Prefix
 }
 
 func (si stringInterner) internUserIDGroupPair(i awsec2.UserIdGroupPair) awsec2.UserIdGroupPair {
+	if i.GroupName == nil {
+		i.UserId = nil
+	}
 	return awsec2.UserIdGroupPair{
 		Description:            si.Intern(i.Description),
 		GroupId:                si.Intern(i.GroupId),
