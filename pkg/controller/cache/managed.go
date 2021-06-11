@@ -53,6 +53,7 @@ const (
 	errCreateReplicationGroup   = "cannot create ElastiCache replication group"
 	errModifyReplicationGroup   = "cannot modify ElastiCache replication group"
 	errDeleteReplicationGroup   = "cannot delete ElastiCache replication group"
+	errModifyReplicationGroupSC = "cannot modify ElastiCache replication group shard configuration"
 )
 
 // SetupReplicationGroup adds a controller that reconciles ReplicationGroups.
@@ -132,7 +133,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	cr.Status.AtProvider = elasticache.GenerateObservation(rg)
 
 	switch cr.Status.AtProvider.Status {
-	case v1beta1.StatusAvailable:
+	case v1beta1.StatusAvailable, v1beta1.StatusSnapshotting, v1beta1.StatusModifying:
 		cr.Status.SetConditions(xpv1.Available())
 	case v1beta1.StatusCreating:
 		cr.Status.SetConditions(xpv1.Creating())
@@ -144,7 +145,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	return managed.ExternalObservation{
 		ResourceExists:    true,
-		ResourceUpToDate:  !elasticache.ReplicationGroupNeedsUpdate(cr.Spec.ForProvider, rg, ccList),
+		ResourceUpToDate:  !elasticache.ReplicationGroupNeedsUpdate(cr.Spec.ForProvider, rg, ccList) && !elasticache.ReplicationGroupShardConfigurationNeedsUpdate(cr.Spec.ForProvider, rg),
 		ConnectionDetails: elasticache.ConnectionEndpoint(rg),
 	}, nil
 }
@@ -193,8 +194,25 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if cr.Status.AtProvider.Status != v1beta1.StatusAvailable {
 		return managed.ExternalUpdate{}, nil
 	}
+
+	rsp, err := e.client.DescribeReplicationGroupsRequest(elasticache.NewDescribeReplicationGroupsInput(meta.GetExternalName(cr))).Send(ctx)
+	if err != nil {
+		return managed.ExternalUpdate{}, awsclient.Wrap(err, errDescribeReplicationGroup)
+	}
+	rg := rsp.ReplicationGroups[0]
+
+	if elasticache.ReplicationGroupShardConfigurationNeedsUpdate(cr.Spec.ForProvider, rg) {
+		mrsc := e.client.ModifyReplicationGroupShardConfigurationRequest(elasticache.NewModifyReplicationGroupShardConfigurationInput(cr.Spec.ForProvider, meta.GetExternalName(cr), rg))
+		_, err := mrsc.Send(ctx)
+		if err != nil {
+			return managed.ExternalUpdate{}, awsclient.Wrap(err, errModifyReplicationGroupSC)
+		}
+		// we can only do one change at a time, so we'll have to return early here
+		return managed.ExternalUpdate{}, nil
+	}
+
 	mr := e.client.ModifyReplicationGroupRequest(elasticache.NewModifyReplicationGroupInput(cr.Spec.ForProvider, meta.GetExternalName(cr)))
-	_, err := mr.Send(ctx)
+	_, err = mr.Send(ctx)
 	return managed.ExternalUpdate{}, awsclient.Wrap(err, errModifyReplicationGroup)
 }
 

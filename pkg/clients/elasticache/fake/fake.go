@@ -32,6 +32,8 @@ type MockClient struct {
 	MockModifyReplicationGroupRequest    func(*elasticache.ModifyReplicationGroupInput) elasticache.ModifyReplicationGroupRequest
 	MockDeleteReplicationGroupRequest    func(*elasticache.DeleteReplicationGroupInput) elasticache.DeleteReplicationGroupRequest
 
+	MockModifyReplicationGroupShardConfigurationRequest func(*elasticache.ModifyReplicationGroupShardConfigurationInput) elasticache.ModifyReplicationGroupShardConfigurationRequest
+
 	MockDescribeCacheSubnetGroupsRequest func(*elasticache.DescribeCacheSubnetGroupsInput) elasticache.DescribeCacheSubnetGroupsRequest
 	MockCreateCacheSubnetGroupRequest    func(*elasticache.CreateCacheSubnetGroupInput) elasticache.CreateCacheSubnetGroupRequest
 	MockModifyCacheSubnetGroupRequest    func(*elasticache.ModifyCacheSubnetGroupInput) elasticache.ModifyCacheSubnetGroupRequest
@@ -65,6 +67,12 @@ func (c *MockClient) ModifyReplicationGroupRequest(i *elasticache.ModifyReplicat
 // MockDeleteReplicationGroupRequest method.
 func (c *MockClient) DeleteReplicationGroupRequest(i *elasticache.DeleteReplicationGroupInput) elasticache.DeleteReplicationGroupRequest {
 	return c.MockDeleteReplicationGroupRequest(i)
+}
+
+// ModifyReplicationGroupRequest calls the underlying
+// MockModifyReplicationGroupRequest method.
+func (c *MockClient) ModifyReplicationGroupShardConfigurationRequest(i *elasticache.ModifyReplicationGroupShardConfigurationInput) elasticache.ModifyReplicationGroupShardConfigurationRequest {
+	return c.MockModifyReplicationGroupShardConfigurationRequest(i)
 }
 
 // DescribeCacheClustersRequest calls the underlying
