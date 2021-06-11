@@ -294,6 +294,82 @@ func TestNewModifyReplicationGroupInput(t *testing.T) {
 	}
 }
 
+func TestNewModifyReplicationGroupShardConfigurationInput(t *testing.T) {
+	cases := []struct {
+		name     string
+		params   v1beta1.ReplicationGroupParameters
+		observed elasticache.ReplicationGroup
+		want     *elasticache.ModifyReplicationGroupShardConfigurationInput
+	}{
+		{
+			name:   "ScaleUp",
+			params: replicationGroup.Spec.ForProvider,
+			observed: elasticache.ReplicationGroup{
+				NodeGroups: []elasticache.NodeGroup{
+					{
+						NodeGroupId: aws.String("ng-01"),
+					},
+				},
+			},
+			want: &elasticache.ModifyReplicationGroupShardConfigurationInput{
+				ApplyImmediately:   aws.Bool(true, aws.FieldRequired),
+				NodeGroupCount:     aws.Int64(2),
+				ReplicationGroupId: aws.String(name, aws.FieldRequired),
+			},
+		},
+		{
+			name:   "ScaleDown",
+			params: replicationGroup.Spec.ForProvider,
+			observed: elasticache.ReplicationGroup{
+				NodeGroups: []elasticache.NodeGroup{
+					{NodeGroupId: aws.String("ng-01")},
+					{NodeGroupId: aws.String("ng-02")},
+					{NodeGroupId: aws.String("ng-03")},
+				},
+			},
+			want: &elasticache.ModifyReplicationGroupShardConfigurationInput{
+				ApplyImmediately:   aws.Bool(true, aws.FieldRequired),
+				NodeGroupCount:     aws.Int64(2),
+				NodeGroupsToRemove: []string{"ng-01"},
+				ReplicationGroupId: aws.String(name),
+			},
+		},
+		{
+			name: "ApplyImmediatelyFromRG",
+			params: v1beta1.ReplicationGroupParameters{
+				ApplyModificationsImmediately: false,
+				NumNodeGroups:                 &numNodeGroups,
+			},
+			observed: elasticache.ReplicationGroup{
+				NodeGroups: []elasticache.NodeGroup{
+					{NodeGroupId: aws.String("ng-01")},
+					{NodeGroupId: aws.String("ng-02")},
+					{NodeGroupId: aws.String("ng-03")},
+				},
+			},
+			want: &elasticache.ModifyReplicationGroupShardConfigurationInput{
+				ApplyImmediately:   aws.Bool(false, aws.FieldRequired),
+				NodeGroupCount:     aws.Int64(2),
+				NodeGroupsToRemove: []string{"ng-01"},
+				ReplicationGroupId: aws.String(name),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := NewModifyReplicationGroupShardConfigurationInput(tc.params, name, tc.observed)
+
+			if err := got.Validate(); err != nil {
+				t.Errorf("NewModifyReplicationGroupShardConfigurationInput(...): invalid input: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("NewModifyReplicationGroupShardConfigurationInput(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestNewDeleteReplicationGroupInput(t *testing.T) {
 	cases := []struct {
 		name string
@@ -679,6 +755,52 @@ func TestReplicationGroupNeedsUpdate(t *testing.T) {
 			got := ReplicationGroupNeedsUpdate(tc.kube, tc.rg, tc.ccList)
 			if got != tc.want {
 				t.Errorf("ReplicationGroupNeedsUpdate(...): want %t, got %t", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestReplicationGroupShardConfigurationNeedsUpdate(t *testing.T) {
+	cases := []struct {
+		name   string
+		kube   v1beta1.ReplicationGroupParameters
+		rg     elasticache.ReplicationGroup
+		ccList []elasticache.CacheCluster
+		want   bool
+	}{
+		{
+			name: "NodeMismatch",
+			kube: replicationGroup.Spec.ForProvider, // 2
+			rg: elasticache.ReplicationGroup{
+				NodeGroups: make([]elasticache.NodeGroup, 3),
+			},
+			want: true,
+		},
+		{
+			name: "UpToDate",
+			kube: replicationGroup.Spec.ForProvider,
+			rg: elasticache.ReplicationGroup{
+				NodeGroups: make([]elasticache.NodeGroup, numNodeGroups),
+			},
+			want: false,
+		},
+		{
+			name: "NilNumNodes",
+			kube: v1beta1.ReplicationGroupParameters{
+				NumNodeGroups: nil,
+			},
+			rg: elasticache.ReplicationGroup{
+				NodeGroups: make([]elasticache.NodeGroup, numNodeGroups),
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ReplicationGroupShardConfigurationNeedsUpdate(tc.kube, tc.rg)
+			if got != tc.want {
+				t.Errorf("ReplicationGroupShardConfigurationNeedsUpdate(...): want %t, got %t", tc.want, got)
 			}
 		})
 	}

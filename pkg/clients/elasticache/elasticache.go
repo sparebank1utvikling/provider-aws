@@ -130,6 +130,26 @@ func NewModifyReplicationGroupInput(g v1beta1.ReplicationGroupParameters, id str
 	}
 }
 
+// NewModifyReplicationGroupShardConfigurationInput returns ElastiCache replication group
+// shard configuration modification input suitable for use with the AWS API.
+func NewModifyReplicationGroupShardConfigurationInput(g v1beta1.ReplicationGroupParameters, id string, rg elasticache.ReplicationGroup) *elasticache.ModifyReplicationGroupShardConfigurationInput {
+	input := &elasticache.ModifyReplicationGroupShardConfigurationInput{
+		ApplyImmediately:   aws.Bool(g.ApplyModificationsImmediately),
+		NodeGroupCount:     aws.Int64(int64(*g.NumNodeGroups)),
+		ReplicationGroupId: aws.String(id),
+	}
+
+	// For scale down we must name the nodes. This code picks the oldest rg
+	// now, but there might be a better algorithm, such as the one with least
+	// data
+	remove := len(rg.NodeGroups) - int(*input.NodeGroupCount)
+	for i := 0; i < remove; i++ {
+		input.NodeGroupsToRemove = append(input.NodeGroupsToRemove, aws.StringValue(rg.NodeGroups[i].NodeGroupId))
+	}
+
+	return input
+}
+
 // NewDeleteReplicationGroupInput returns ElastiCache replication group deletion
 // input suitable for use with the AWS API.
 func NewDeleteReplicationGroupInput(id string) *elasticache.DeleteReplicationGroupInput {
@@ -189,6 +209,12 @@ func LateInitialize(s *v1beta1.ReplicationGroupParameters, rg elasticache.Replic
 			s.CacheSecurityGroupNames[i] = aws.StringValue(val.CacheSecurityGroupName)
 		}
 	}
+}
+
+// ReplicationGroupShardConfigurationNeedsUpdate returns true if the supplied ReplicationGroup and
+// the configuration shards.
+func ReplicationGroupShardConfigurationNeedsUpdate(kube v1beta1.ReplicationGroupParameters, rg elasticache.ReplicationGroup) bool {
+	return kube.NumNodeGroups != nil && *kube.NumNodeGroups != len(rg.NodeGroups)
 }
 
 // ReplicationGroupNeedsUpdate returns true if the supplied ReplicationGroup and

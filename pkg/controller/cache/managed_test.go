@@ -119,6 +119,10 @@ func withTags(tagMaps ...map[string]string) replicationGroupModifier {
 	return func(r *v1beta1.ReplicationGroup) { r.Spec.ForProvider.Tags = tagList }
 }
 
+func withNumNodeGroups(n int) replicationGroupModifier {
+	return func(r *v1beta1.ReplicationGroup) { r.Spec.ForProvider.NumNodeGroups = &n }
+}
+
 func replicationGroup(rm ...replicationGroupModifier) *v1beta1.ReplicationGroup {
 	r := &v1beta1.ReplicationGroup{
 		ObjectMeta: objectMeta,
@@ -515,6 +519,66 @@ func TestUpdate(t *testing.T) {
 				withProviderStatus(v1beta1.StatusAvailable),
 				withConditions(xpv1.Available()),
 				withMemberClusters([]string{cacheClusterID}),
+			),
+			returnsErr: true,
+		},
+		{
+			name: "CallsModifyReplicationGroupShardConfiguration",
+			e: &external{client: &fake.MockClient{
+				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
+					return elasticache.DescribeReplicationGroupsRequest{
+						Request: &aws.Request{
+							HTTPRequest: &http.Request{},
+							Retryer:     aws.NoOpRetryer{},
+							Data: &elasticache.DescribeReplicationGroupsOutput{
+								ReplicationGroups: []elasticache.ReplicationGroup{{
+									Status:                 aws.String(v1beta1.StatusAvailable),
+									MemberClusters:         []string{cacheClusterID},
+									AutomaticFailover:      elasticache.AutomaticFailoverStatusEnabled,
+									NodeGroups:             []elasticache.NodeGroup{{NodeGroupId: aws.String("ng-01")}, {NodeGroupId: aws.String("ng-02")}},
+									CacheNodeType:          aws.String(cacheNodeType),
+									SnapshotRetentionLimit: aws.Int64(int64(snapshotRetentionLimit)),
+									SnapshotWindow:         aws.String(snapshotWindow),
+									ClusterEnabled:         aws.Bool(true),
+									ConfigurationEndpoint:  &elasticache.Endpoint{Address: aws.String(host), Port: aws.Int64(int64(port))},
+								}},
+							},
+						},
+					}
+				},
+				MockDescribeCacheClustersRequest: func(_ *elasticache.DescribeCacheClustersInput) elasticache.DescribeCacheClustersRequest {
+					return elasticache.DescribeCacheClustersRequest{
+						Request: &aws.Request{
+							HTTPRequest: &http.Request{},
+							Retryer:     aws.NoOpRetryer{},
+							Data: &elasticache.DescribeCacheClustersOutput{
+								CacheClusters: []elasticache.CacheCluster{{
+									EngineVersion:              aws.String(engineVersion),
+									PreferredMaintenanceWindow: aws.String("never!"), // This field needs to be updated.
+								}},
+							},
+						},
+					}
+				},
+				MockModifyReplicationGroupShardConfigurationRequest: func(_ *elasticache.ModifyReplicationGroupShardConfigurationInput) elasticache.ModifyReplicationGroupShardConfigurationRequest {
+					return elasticache.ModifyReplicationGroupShardConfigurationRequest{
+						Request: &aws.Request{HTTPRequest: &http.Request{}, Error: errorBoom},
+					}
+				},
+			}},
+			r: replicationGroup(
+				withReplicationGroupID(name),
+				withProviderStatus(v1beta1.StatusAvailable),
+				withConditions(xpv1.Available()),
+				withMemberClusters([]string{cacheClusterID}),
+				withNumNodeGroups(3),
+			),
+			want: replicationGroup(
+				withReplicationGroupID(name),
+				withProviderStatus(v1beta1.StatusAvailable),
+				withConditions(xpv1.Available()),
+				withMemberClusters([]string{cacheClusterID}),
+				withNumNodeGroups(3),
 			),
 			returnsErr: true,
 		},
