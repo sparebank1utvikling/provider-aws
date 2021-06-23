@@ -103,6 +103,25 @@ type external struct {
 	kube client.Client
 }
 
+func IsSGUpToDate(sg *v1beta1.SecurityGroupParameters, observed awsec2.SecurityGroup) bool {
+	addTags, removeTags := awsclient.DiffEC2Tags(v1beta1.GenerateEC2Tags(sg.Tags), observed.Tags)
+	if len(addTags) > 0 || len(removeTags) > 0 {
+		return false
+	}
+
+	add, remove := diffPermissions(ec2.GenerateEC2Permissions(sg.Ingress), observed.IpPermissions)
+	if len(add) > 0 || len(remove) > 0 {
+		return false
+	}
+
+	add, remove = diffPermissions(ec2.GenerateEC2Permissions(sg.Egress), observed.IpPermissionsEgress)
+	if len(add) > 0 || len(remove) > 0 {
+		return false
+	}
+
+	return true
+}
+
 func (e *external) Observe(ctx context.Context, mgd resource.Managed) (managed.ExternalObservation, error) { // nolint:gocyclo
 	cr, ok := mgd.(*v1beta1.SecurityGroup)
 	if !ok {
@@ -131,11 +150,7 @@ func (e *external) Observe(ctx context.Context, mgd resource.Managed) (managed.E
 	ec2.LateInitializeSG(&cr.Spec.ForProvider, &observed)
 
 	cr.Status.AtProvider = ec2.GenerateSGObservation(observed)
-
-	upToDate, err := ec2.IsSGUpToDate(cr.Spec.ForProvider, observed)
-	if err != nil {
-		return managed.ExternalObservation{}, awsclient.Wrap(err, errDescribe)
-	}
+	upToDate := IsSGUpToDate(&cr.Spec.ForProvider, observed)
 
 	// this is to make sure that the security group exists with the specified traffic rules.
 	if upToDate {

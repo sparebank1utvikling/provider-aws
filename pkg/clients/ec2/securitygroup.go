@@ -10,9 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	"github.com/crossplane/provider-aws/apis/ec2/v1beta1"
 	aws "github.com/crossplane/provider-aws/pkg/clients"
@@ -350,21 +347,8 @@ func CreateSGPatch(in ec2.SecurityGroup, target v1beta1.SecurityGroupParameters)
 	return patch, nil
 }
 
-// IsSGUpToDate checks whether there is a change in any of the modifiable fields.
-func IsSGUpToDate(p v1beta1.SecurityGroupParameters, sg ec2.SecurityGroup) (bool, error) {
-	patch, err := CreateSGPatch(sg, p)
-	if err != nil {
-		return false, err
-	}
-	return cmp.Equal(&v1beta1.SecurityGroupParameters{}, patch,
-		cmpopts.IgnoreTypes(&xpv1.Reference{}, &xpv1.Selector{}),
-		cmpopts.IgnoreFields(v1beta1.SecurityGroupParameters{}, "Region"),
-		InsensitiveCases()), nil
-}
-
 // TODO(muvaf): We needed this for IPProtocol field; even if you send "TCP", AWS
 // returns "tcp". However, this cmp.Option is probably useful for other providers,
-// too. Consider making it part of crossplane-runtime.
 
 // InsensitiveCases ignores the case sensitivity for string and *string types.
 func InsensitiveCases() cmp.Option {
