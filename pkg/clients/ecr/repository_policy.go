@@ -211,6 +211,10 @@ func IsRepositoryPolicyUpToDate(local, remote *string) bool {
 	var localUnmarshalled interface{}
 	var remoteUnmarshalled interface{}
 
+	if local == nil || remote == nil {
+		return local == remote
+	}
+
 	var err error
 	err = json.Unmarshal([]byte(*local), &localUnmarshalled)
 	if err != nil {
