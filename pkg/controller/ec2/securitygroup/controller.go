@@ -103,6 +103,7 @@ type external struct {
 	kube client.Client
 }
 
+// IsSGUpToDate checks if the observed security group is up to date
 func IsSGUpToDate(sg *v1beta1.SecurityGroupParameters, observed awsec2.SecurityGroup) bool {
 	addTags, removeTags := awsclient.DiffEC2Tags(v1beta1.GenerateEC2Tags(sg.Tags), observed.Tags)
 	if len(addTags) > 0 || len(removeTags) > 0 {
