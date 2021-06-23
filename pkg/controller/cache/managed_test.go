@@ -274,7 +274,7 @@ func TestObserve(t *testing.T) {
 			want: replicationGroup(
 				withProviderStatus(v1beta1.StatusModifying),
 				withReplicationGroupID(name),
-				withConditions(xpv1.Unavailable()),
+				withConditions(xpv1.Available()),
 			),
 		},
 		{
