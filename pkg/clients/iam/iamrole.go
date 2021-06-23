@@ -2,6 +2,7 @@ package iam
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/crossplane/provider-aws/apis/identity/v1beta1"
 	awsclients "github.com/crossplane/provider-aws/pkg/clients"
+	"github.com/crossplane/provider-aws/pkg/clients/ecr"
 )
 
 const (
@@ -151,7 +153,16 @@ func IsRoleUpToDate(in v1beta1.IAMRoleParameters, observed iam.Role) (bool, erro
 		return false, err
 	}
 
-	return cmp.Equal(desired, &observed, cmpopts.IgnoreInterfaces(struct{ resource.AttributeReferencer }{})), nil
+	if ecr.IsRepositoryPolicyUpToDate(desired.AssumeRolePolicyDocument, observed.AssumeRolePolicyDocument) {
+		observed.AssumeRolePolicyDocument = desired.AssumeRolePolicyDocument
+	}
+
+	diff := cmp.Diff(desired, &observed, cmpopts.IgnoreInterfaces(struct{ resource.AttributeReferencer }{}))
+	if diff != "" {
+		cmp.Diff(observed.AssumeRolePolicyDocument, desired.AssumeRolePolicyDocument)
+		fmt.Println(in, diff)
+	}
+	return diff == "", nil
 }
 
 // DiffIAMTags returns the lists of tags that need to be removed and added according
