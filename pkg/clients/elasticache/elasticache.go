@@ -211,8 +211,8 @@ func LateInitialize(s *v1beta1.ReplicationGroupParameters, rg elasticache.Replic
 	}
 }
 
-// ReplicationGroupNeedsUpdate returns true if the supplied ReplicationGroup and
-// the configuration of its member clusters differ from given desired state.
+// ReplicationGroupShardConfigurationNeedsUpdate returns true if the supplied ReplicationGroup and
+// the configuration shards.
 func ReplicationGroupShardConfigurationNeedsUpdate(kube v1beta1.ReplicationGroupParameters, rg elasticache.ReplicationGroup) bool {
 	return kube.NumNodeGroups != nil && *kube.NumNodeGroups != len(rg.NodeGroups)
 }

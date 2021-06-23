@@ -69,8 +69,8 @@ func (c *MockClient) DeleteReplicationGroupRequest(i *elasticache.DeleteReplicat
 	return c.MockDeleteReplicationGroupRequest(i)
 }
 
-// ModifyReplicationGroupRequest calls the underlying
-// MockModifyReplicationGroupRequest method.
+// ModifyReplicationGroupShardConfigurationRequest calls the underlying
+// MockModifyReplicationGroupShardConfigurationRequest method.
 func (c *MockClient) ModifyReplicationGroupShardConfigurationRequest(i *elasticache.ModifyReplicationGroupShardConfigurationInput) elasticache.ModifyReplicationGroupShardConfigurationRequest {
 	return c.MockModifyReplicationGroupShardConfigurationRequest(i)
 }
