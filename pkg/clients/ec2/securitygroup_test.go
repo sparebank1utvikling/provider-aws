@@ -52,6 +52,7 @@ func sgIPPermission(ports ...int) (ret []ec2.IpPermission) {
 	return ret
 }
 
+/*
 func TestIsSGUpToDate(t *testing.T) {
 	type args struct {
 		sg ec2.SecurityGroup
@@ -124,7 +125,7 @@ func TestIsSGUpToDate(t *testing.T) {
 		})
 	}
 }
-
+*/
 func TestGenerateSGObservation(t *testing.T) {
 	cases := map[string]struct {
 		in  ec2.SecurityGroup
