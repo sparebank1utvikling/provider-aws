@@ -139,6 +139,12 @@ func GenerateCreateDBInstanceInput(name, password string, p *v1beta1.RDSInstance
 			}
 		}
 	}
+
+	if p.CloudwatchLogsExportConfiguration != nil && len(p.CloudwatchLogsExportConfiguration.EnableLogTypes) > 0 {
+		add, _ := stringDiff(p.EnableCloudwatchLogsExports, p.CloudwatchLogsExportConfiguration.EnableLogTypes)
+		p.EnableCloudwatchLogsExports = append(p.EnableCloudwatchLogsExports, add...)
+	}
+
 	return c
 }
 
@@ -147,6 +153,10 @@ func GenerateCreateDBInstanceInput(name, password string, p *v1beta1.RDSInstance
 // *rds.DBInstance
 func CreatePatch(in *rds.DBInstance, target *v1beta1.RDSInstanceParameters) (*v1beta1.RDSInstanceParameters, error) {
 	currentParams := &v1beta1.RDSInstanceParameters{}
+	if target.CloudwatchLogsExportConfiguration != nil && len(target.CloudwatchLogsExportConfiguration.EnableLogTypes) > 0 {
+		add, _ := stringDiff(target.EnableCloudwatchLogsExports, target.CloudwatchLogsExportConfiguration.EnableLogTypes)
+		target.EnableCloudwatchLogsExports = append(target.EnableCloudwatchLogsExports, add...)
+	}
 	LateInitialize(currentParams, in)
 
 	jsonPatch, err := awsclients.CreateJSONPatch(currentParams, target)
@@ -157,11 +167,12 @@ func CreatePatch(in *rds.DBInstance, target *v1beta1.RDSInstanceParameters) (*v1
 	if err := json.Unmarshal(jsonPatch, patch); err != nil {
 		return nil, err
 	}
+	patch.CloudwatchLogsExportConfiguration = nil // handled above, legacy parameter
 	return patch, nil
 }
 
 // GenerateModifyDBInstanceInput from RDSInstanceSpec
-func GenerateModifyDBInstanceInput(name string, p *v1beta1.RDSInstanceParameters) *rds.ModifyDBInstanceInput {
+func GenerateModifyDBInstanceInput(name string, p *v1beta1.RDSInstanceParameters, wantedCloudWatchLogsExports, enabledCloudWatchLogsExports []string) *rds.ModifyDBInstanceInput {
 	// NOTE(muvaf): MasterUserPassword is not used here. So, password is set once
 	// and kept that way.
 	// NOTE(muvaf): Change of DBInstanceIdentifier is supported by AWS but
@@ -212,13 +223,41 @@ func GenerateModifyDBInstanceInput(name string, p *v1beta1.RDSInstanceParameters
 			}
 		}
 	}
-	if p.CloudwatchLogsExportConfiguration != nil {
+
+	add, remove := stringDiff(wantedCloudWatchLogsExports, enabledCloudWatchLogsExports)
+	if len(add) > 0 || len(remove) > 0 {
 		m.CloudwatchLogsExportConfiguration = &rds.CloudwatchLogsExportConfiguration{
-			DisableLogTypes: p.CloudwatchLogsExportConfiguration.DisableLogTypes,
-			EnableLogTypes:  p.CloudwatchLogsExportConfiguration.EnableLogTypes,
+			DisableLogTypes: remove,
+			EnableLogTypes:  add,
 		}
 	}
+
 	return m
+}
+
+// stringDiff returns the set of strings to add and remove from the observed list to get to the desired list. For small lists only.
+func stringDiff(desired, observed []string) (add, remove []string) {
+	for _, o := range observed {
+		if !inList(o, desired) {
+			remove = append(remove, o)
+		}
+	}
+
+	for _, d := range desired {
+		if !inList(d, observed) {
+			add = append(add, d)
+		}
+	}
+	return
+}
+
+func inList(s string, list []string) bool {
+	for _, elem := range list {
+		if elem == s {
+			return true
+		}
+	}
+	return false
 }
 
 // GenerateObservation is used to produce v1alpha3.RDSInstanceObservation from
@@ -464,6 +503,15 @@ func IsUpToDate(ctx context.Context, kube client.Client, r *v1beta1.RDSInstance,
 	if err != nil {
 		return false, err
 	}
+
+	// CreatePatch is not suited in the case where we want to disable
+	// all logs, because it assumes an empty patch means no change,
+	// not to go to the "null" state
+	add, remove := stringDiff(r.Spec.ForProvider.EnableCloudwatchLogsExports, db.EnabledCloudwatchLogsExports)
+	if len(add) > 0 || len(remove) > 0 {
+		return false, nil
+	}
+
 	diff := cmp.Diff(&v1beta1.RDSInstanceParameters{}, patch, cmpopts.EquateEmpty(),
 		cmpopts.IgnoreTypes(&xpv1.Reference{}, &xpv1.Selector{}, []xpv1.Reference{}),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "Region"),
@@ -473,6 +521,7 @@ func IsUpToDate(ctx context.Context, kube client.Client, r *v1beta1.RDSInstance,
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "ApplyModificationsImmediately"),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "AllowMajorVersionUpgrade"),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "MasterPasswordSecretRef"),
+		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "CloudwatchLogsExportConfiguration"),
 	)
 	if diff != "" {
 		log.Println(r.ObjectMeta.Name, diff)
