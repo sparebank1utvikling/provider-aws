@@ -20,6 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -112,8 +116,19 @@ type BucketClient interface {
 	DeletePublicAccessBlock(ctx context.Context, input *s3.DeletePublicAccessBlockInput, opts ...func(*s3.Options)) (*s3.DeletePublicAccessBlockOutput, error)
 }
 
+type x struct{}
+
+func (*x) Do(req *http.Request) (*http.Response, error) {
+	fmt.Println(req.URL.String())
+	req.Body = ioutil.NopCloser(io.TeeReader(req.Body, os.Stderr))
+	return http.DefaultClient.Do(req)
+}
+
 // NewClient returns a new client using AWS credentials as JSON encoded data.
 func NewClient(cfg aws.Config) BucketClient {
+	fmt.Println("NewClient")
+	cfg.HTTPClient = &x{}
+	cfg.ClientLogMode = aws.LogRequestWithBody | aws.LogResponseWithBody
 	return s3.NewFromConfig(cfg)
 }
 
