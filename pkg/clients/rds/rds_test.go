@@ -1018,18 +1018,18 @@ func TestGenerateModifyDBInstanceInput(t *testing.T) {
 	emptyName := "emptyProcessor"
 	iamRole := "iamRole"
 	vpcIds := []string{name}
+	wantedLogExports := []string{"a", "b", "common1", "common2", "c"}
+	observedLogExports := []string{"1", "2", "common2", "common1", "3"}
 	rdsCloudwatchLogsExportConfig := rdstypes.CloudwatchLogsExportConfiguration{
-		DisableLogTypes: cloudwatchExports,
-		EnableLogTypes:  cloudwatchExports,
-	}
-	cloudwatchLogsExportConfig := v1beta1.CloudwatchLogsExportConfiguration{
-		DisableLogTypes: cloudwatchExports,
-		EnableLogTypes:  cloudwatchExports,
+		DisableLogTypes: []string{"1", "2", "3"},
+		EnableLogTypes:  []string{"a", "b", "c"},
 	}
 	cases := map[string]struct {
-		name   string
-		params v1beta1.RDSInstanceParameters
-		want   rds.ModifyDBInstanceInput
+		name               string
+		params             v1beta1.RDSInstanceParameters
+		wantedLogExports   []string
+		observedLogExports []string
+		want               rds.ModifyDBInstanceInput
 	}{
 		"AllFields": {
 			name: allFieldsName,
@@ -1044,7 +1044,6 @@ func TestGenerateModifyDBInstanceInput(t *testing.T) {
 				BackupRetentionPeriod:              &retention,
 				CACertificateIdentifier:            &name,
 				CharacterSetName:                   &name,
-				CloudwatchLogsExportConfiguration:  &cloudwatchLogsExportConfig,
 				CopyTagsToSnapshot:                 &trueFlag,
 				DBClusterIdentifier:                &clusterName,
 				DBName:                             &name,
@@ -1083,6 +1082,8 @@ func TestGenerateModifyDBInstanceInput(t *testing.T) {
 				EngineVersion:               &engine,
 				UseDefaultProcessorFeatures: &trueFlag,
 			},
+			observedLogExports: observedLogExports,
+			wantedLogExports:   wantedLogExports,
 			want: rds.ModifyDBInstanceInput{
 				DBInstanceIdentifier:               &allFieldsName,
 				AllocatedStorage:                   &storage32,
@@ -1136,7 +1137,7 @@ func TestGenerateModifyDBInstanceInput(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := GenerateModifyDBInstanceInput(tc.name, &tc.params)
+			got := GenerateModifyDBInstanceInput(tc.name, &tc.params, tc.wantedLogExports, tc.observedLogExports)
 			if diff := cmp.Diff(&tc.want, got, cmpopts.IgnoreTypes(document.NoSerde{})); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}

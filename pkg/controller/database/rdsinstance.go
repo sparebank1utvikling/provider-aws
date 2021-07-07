@@ -227,7 +227,7 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errPatchCreationFailed)
 	}
-	modify := rds.GenerateModifyDBInstanceInput(meta.GetExternalName(cr), patch)
+	modify := rds.GenerateModifyDBInstanceInput(meta.GetExternalName(cr), patch, cr.Spec.ForProvider.EnableCloudwatchLogsExports, rsp.DBInstances[0].EnabledCloudwatchLogsExports)
 	var conn managed.ConnectionDetails
 
 	pwd, changed, err := rds.GetPassword(ctx, e.kube, cr.Spec.ForProvider.MasterPasswordSecretRef, cr.Spec.WriteConnectionSecretToReference)
