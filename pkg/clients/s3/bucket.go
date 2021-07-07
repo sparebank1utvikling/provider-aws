@@ -19,6 +19,10 @@ package s3
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -108,9 +112,24 @@ type BucketClient interface {
 	DeletePublicAccessBlockRequest(input *s3.DeletePublicAccessBlockInput) s3.DeletePublicAccessBlockRequest
 }
 
+type x struct{}
+
+func (*x) Do(req *http.Request) (*http.Response, error) {
+	fmt.Println(req.URL.String())
+	req.Body = ioutil.NopCloser(io.TeeReader(req.Body, os.Stderr))
+	return http.DefaultClient.Do(req)
+}
+
 // NewClient returns a new client using AWS credentials as JSON encoded data.
 func NewClient(cfg aws.Config) BucketClient {
-	return s3.New(cfg)
+	fmt.Println("NewClient")
+	c := s3.New(cfg)
+	c.HTTPClient = &x{}
+	c.Client.Logger = aws.LoggerFunc(func(args ...interface{}) {
+		fmt.Fprintln(os.Stdout, args...)
+	})
+	c.Client.LogLevel = aws.LogDebugWithHTTPBody
+	return c
 }
 
 // IsNotFound helper function to test for NotFound error
