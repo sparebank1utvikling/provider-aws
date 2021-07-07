@@ -25,8 +25,11 @@ import (
 	awsrds "github.com/aws/aws-sdk-go-v2/service/rds"
 	awsrdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlevent "sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
@@ -74,6 +77,30 @@ func SetupRDSInstance(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
+		WithEventFilter(predicate.Funcs{
+			// https://stuartleeks.com/posts/kubebuilder-event-filters-part-2-update/
+			UpdateFunc: func(e ctrlevent.UpdateEvent) bool {
+				cr, ok := e.ObjectNew.(*v1beta1.RDSInstance)
+				if ok && cr.Status.GetCondition(xpv1.TypeReady).Status == corev1.ConditionTrue {
+					oldGeneration := e.ObjectOld.GetGeneration()
+					newGeneration := e.ObjectNew.GetGeneration()
+					// Generation is only updated on spec changes (also on deletion),
+					// not metadata or status
+					// Filter out events where the generation hasn't changed to
+					// avoid being triggered by status updates
+					o.Logger.Debug("filter event?", "gen equals", oldGeneration == newGeneration)
+					return oldGeneration != newGeneration
+				}
+
+				return true
+			},
+			DeleteFunc: func(e ctrlevent.DeleteEvent) bool {
+				// The reconciler adds a finalizer so we perform clean-up
+				// when the delete timestamp is added
+				// Suppress Delete events to avoid filtering them out in the Reconcile function
+				return true
+			},
+		}).
 		For(&v1beta1.RDSInstance{}).
 		Complete(managed.NewReconciler(mgr,
 			resource.ManagedKind(v1beta1.RDSInstanceGroupVersionKind),
