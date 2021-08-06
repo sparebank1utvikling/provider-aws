@@ -17,7 +17,6 @@ limitations under the License.
 package ec2
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -49,12 +48,30 @@ func sgPermissions(port int64, cidrs ...string) []awsec2.IpPermission {
 	}
 }
 
+func sgUserIDGroupPair(port int64, groupIDs ...string) []awsec2.IpPermission {
+	groups := make([]awsec2.UserIdGroupPair, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		groups = append(groups, awsec2.UserIdGroupPair{
+			GroupId: aws.String(groupID),
+		})
+	}
+	return []awsec2.IpPermission{
+		{
+			FromPort:         aws.Int64(port),
+			ToPort:           aws.Int64(port),
+			IpProtocol:       aws.String(tcpProtocol),
+			UserIdGroupPairs: groups,
+		},
+	}
+}
+
 // NOTE(muvaf): Sending -1 as FromPort or ToPort is valid but the returned
 // object does not have that value. So, in case we have sent -1, we assume
 // that the returned value is also -1 in case if it's nil.
 // See the following about usage of -1
 // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-security-group-egress.html
-//mOne := int64(-1)
+
+// mOne := int64(-1)
 
 func TestDiffPermissions(t *testing.T) {
 	type testCase struct {
@@ -88,9 +105,9 @@ func TestDiffPermissions(t *testing.T) {
 		},
 		{
 			name:   "Replace",
-			want:   sgPermissions(99, cidr),
+			want:   sgPermissions(port80, cidr),
 			have:   sgPermissions(port100, cidr),
-			add:    sgPermissions(99, cidr),
+			add:    sgPermissions(port80, cidr),
 			remove: sgPermissions(port100, cidr),
 		},
 		{
@@ -132,8 +149,8 @@ func TestDiffPermissions(t *testing.T) {
 		},
 		{
 			name:   "Ignore order",
-			want:   sgPermissions(port100, "172.240.1.1/32", "192.168.0.1/32", cidr),
-			have:   sgPermissions(port100, "192.168.0.1/32", cidr, "172.240.1.1/32"),
+			want:   append(sgUserIDGroupPair(port100, "sg-2", "sg-1"), sgPermissions(port100, "172.240.1.1/32", "192.168.0.1/32", cidr)...),
+			have:   append(sgUserIDGroupPair(port100, "sg-1", "sg-2"), sgPermissions(port100, "192.168.0.1/32", cidr, "172.240.1.1/32")...),
 			add:    nil,
 			remove: nil,
 		},
@@ -171,68 +188,5 @@ func TestDiffPermissions(t *testing.T) {
 				t.Errorf("r remove: -want, +got:\n%s", diff)
 			}
 		})
-	}
-}
-
-func BenchmarkDiffPermissions(b *testing.B) {
-	var ranges, ranges2, ranges3 []awsec2.IpRange
-	for i := 1; i < 255; i++ {
-		for j := 0; j < 10; j++ {
-			ranges = append(ranges, awsec2.IpRange{
-				CidrIp: aws.String(fmt.Sprintf("%d.%d.0.0/24", i, j)),
-			})
-		}
-		ranges2 = append(ranges, awsec2.IpRange{
-			CidrIp: aws.String(fmt.Sprintf("%d.1.1.0/24", i)),
-		})
-		ranges3 = append(ranges, awsec2.IpRange{
-			CidrIp: aws.String(fmt.Sprintf("%d.2.2.0/24", i)),
-		})
-	}
-
-	want := []awsec2.IpPermission{
-		{
-			IpProtocol: aws.String("TCP"),
-			FromPort:   &port100,
-			ToPort:     &port100,
-			IpRanges:   ranges,
-		},
-		{
-			IpProtocol: aws.String("TCP"),
-			FromPort:   &port100,
-			ToPort:     &port100,
-			IpRanges:   ranges,
-		},
-		{
-			IpProtocol: aws.String("TCP"),
-			FromPort:   &port100,
-			ToPort:     &port100,
-			IpRanges:   ranges2,
-		},
-	}
-
-	have := []awsec2.IpPermission{
-		{
-			IpProtocol: aws.String("tcp"),
-			FromPort:   &port100,
-			ToPort:     &port100,
-			IpRanges:   ranges,
-		},
-		{
-			IpProtocol: aws.String("TCP"),
-			FromPort:   &port100,
-			ToPort:     &port100,
-			IpRanges:   ranges,
-		},
-		{
-			IpProtocol: aws.String("tcp"),
-			FromPort:   &port100,
-			ToPort:     &port100,
-			IpRanges:   ranges3,
-		},
-	}
-
-	for i := 0; i < b.N; i++ {
-		DiffPermissions(want, have)
 	}
 }

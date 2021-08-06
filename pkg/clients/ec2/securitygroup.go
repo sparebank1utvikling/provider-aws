@@ -1,8 +1,6 @@
 package ec2
 
 import (
-	"sort"
-
 	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -103,54 +101,6 @@ func GenerateEC2Permissions(objectPerms []v1beta1.IPPermission) []ec2.IpPermissi
 	return permissions
 }
 
-// GenerateIPPermissions converts object EC2 Permissions to IPPermission format
-func GenerateIPPermissions(objectPerms []ec2.IpPermission) []v1beta1.IPPermission {
-	if len(objectPerms) == 0 {
-		return nil
-	}
-	permissions := make([]v1beta1.IPPermission, len(objectPerms))
-	for i, p := range objectPerms {
-		ipPerm := v1beta1.IPPermission{
-			FromPort:   p.FromPort,
-			IPProtocol: aws.StringValue(p.IpProtocol),
-			ToPort:     p.ToPort,
-		}
-		for _, c := range p.IpRanges {
-			ipPerm.IPRanges = append(ipPerm.IPRanges, v1beta1.IPRange{
-				CIDRIP:      aws.StringValue(c.CidrIp),
-				Description: c.Description,
-			})
-		}
-		for _, c := range p.Ipv6Ranges {
-			ipPerm.IPv6Ranges = append(ipPerm.IPv6Ranges, v1beta1.IPv6Range{
-				CIDRIPv6:    aws.StringValue(c.CidrIpv6),
-				Description: c.Description,
-			})
-		}
-		for _, c := range p.PrefixListIds {
-			ipPerm.PrefixListIDs = append(ipPerm.PrefixListIDs, v1beta1.PrefixListID{
-				Description:  c.Description,
-				PrefixListID: aws.StringValue(c.PrefixListId),
-			})
-		}
-		for _, c := range p.UserIdGroupPairs {
-			ipPerm.UserIDGroupPairs = append(ipPerm.UserIDGroupPairs, v1beta1.UserIDGroupPair{
-				Description:            c.Description,
-				GroupID:                c.GroupId,
-				GroupName:              c.GroupName,
-				UserID:                 c.UserId,
-				VPCID:                  c.VpcId,
-				VPCPeeringConnectionID: c.VpcPeeringConnectionId,
-			})
-		}
-		permissions[i] = ipPerm
-	}
-	sort.Slice(permissions, func(i, j int) bool {
-		return aws.Int64Value(permissions[i].FromPort) < aws.Int64Value(permissions[j].FromPort)
-	})
-	return permissions
-}
-
 // GenerateSGObservation is used to produce v1beta1.SecurityGroupExternalStatus from
 // ec2.SecurityGroup.
 func GenerateSGObservation(sg ec2.SecurityGroup) v1beta1.SecurityGroupObservation {
@@ -177,7 +127,6 @@ func LateInitializeSG(in *v1beta1.SecurityGroupParameters, sg *ec2.SecurityGroup
 		in.Tags = v1beta1.BuildFromEC2Tags(sg.Tags)
 	}
 }
-
 
 // IsSGUpToDate checks if the observed security group is up to equal to the desired state
 func IsSGUpToDate(sg v1beta1.SecurityGroupParameters, observed ec2.SecurityGroup) bool {
