@@ -141,7 +141,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	cr.Status.AtProvider = elasticache.GenerateObservation(rg)
 
 	switch cr.Status.AtProvider.Status {
-	case v1beta1.StatusAvailable:
+	case v1beta1.StatusAvailable, v1beta1.StatusSnapshotting, v1beta1.StatusModifying:
 		cr.Status.SetConditions(xpv1.Available())
 	case v1beta1.StatusCreating:
 		cr.Status.SetConditions(xpv1.Creating())
