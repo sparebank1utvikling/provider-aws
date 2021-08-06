@@ -2,6 +2,7 @@ package dbparametergroup
 
 import (
 	"context"
+	"fmt"
 
 	svcsdk "github.com/aws/aws-sdk-go/service/rds"
 	svcsdkapi "github.com/aws/aws-sdk-go/service/rds/rdsiface"
@@ -125,12 +126,15 @@ func (e *custom) isUpToDate(cr *svcapitypes.DBParameterGroup, obj *svcsdk.Descri
 	for _, v := range cr.Spec.ForProvider.Parameters {
 		existing, ok := observed[awsclients.StringValue(v.ParameterName)]
 		if !ok {
+			fmt.Println("missing ", awsclients.StringValue(v.ParameterName))
 			return false, nil
 		}
 		switch {
 		case awsclients.StringValue(existing.ParameterValue) != awsclients.StringValue(v.ParameterValue):
+			fmt.Printf("diff DBParameterValue %v %v %v", awsclients.StringValue(v.ParameterName), awsclients.StringValue(existing.ParameterValue), awsclients.StringValue(v.ParameterValue))
 			return false, nil
 		case awsclients.StringValue(existing.ApplyMethod) != awsclients.StringValue(v.ApplyMethod):
+			fmt.Printf("diff DBParameter Apply Method %v, %v, %v", awsclients.StringValue(v.ParameterName), awsclients.StringValue(existing.ApplyMethod), awsclients.StringValue(v.ApplyMethod))
 			return false, nil
 		}
 	}
