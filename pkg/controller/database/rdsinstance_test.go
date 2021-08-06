@@ -89,6 +89,18 @@ func withDBInstanceStatus(s string) rdsModifier {
 	return func(r *v1beta1.RDSInstance) { r.Status.AtProvider.DBInstanceStatus = s }
 }
 
+func withAllocatedStorage(i int) rdsModifier {
+	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.AllocatedStorage = &i }
+}
+
+func withMaxAllocatedStorage(i int) rdsModifier {
+	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.MaxAllocatedStorage = &i }
+}
+
+func withStatusAllocatedStorage(i int) rdsModifier {
+	return func(r *v1beta1.RDSInstance) { r.Status.AtProvider.AllocatedStorage = i }
+}
+
 func withPasswordSecretRef(s xpv1.SecretKeySelector) rdsModifier {
 	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.MasterPasswordSecretRef = &s }
 }
@@ -134,6 +146,39 @@ func TestObserve(t *testing.T) {
 			},
 			want: want{
 				cr: instance(
+					withConditions(xpv1.Available()),
+					withDBInstanceStatus(string(v1beta1.RDSInstanceStateAvailable))),
+				result: managed.ExternalObservation{
+					ResourceExists:    true,
+					ResourceUpToDate:  true,
+					ConnectionDetails: rds.GetConnectionDetails(v1beta1.RDSInstance{}),
+				},
+			},
+		},
+		"AutoscaledStorageIsUpToDate": { // if aws scales storage up, we should still consider it up to date, even if initial storage size was provided
+			args: args{
+				rds: &fake.MockRDSClient{
+					MockDescribe: func(input *awsrds.DescribeDBInstancesInput) awsrds.DescribeDBInstancesRequest {
+						return awsrds.DescribeDBInstancesRequest{
+							Request: &aws.Request{HTTPRequest: &http.Request{}, Retryer: aws.NoOpRetryer{}, Data: &awsrds.DescribeDBInstancesOutput{
+								DBInstances: []awsrds.DBInstance{
+									{
+										DBInstanceStatus:    aws.String(string(v1beta1.RDSInstanceStateAvailable)),
+										MaxAllocatedStorage: aws.Int64(100),
+										AllocatedStorage:    aws.Int64(30),
+									},
+								},
+							}},
+						}
+					},
+				},
+				cr: instance(withMaxAllocatedStorage(100), withAllocatedStorage(20)),
+			},
+			want: want{
+				cr: instance(
+					withMaxAllocatedStorage(100),
+					withAllocatedStorage(20),
+					withStatusAllocatedStorage(30),
 					withConditions(xpv1.Available()),
 					withDBInstanceStatus(string(v1beta1.RDSInstanceStateAvailable))),
 				result: managed.ExternalObservation{
@@ -503,6 +548,44 @@ func TestUpdate(t *testing.T) {
 			},
 			want: want{
 				cr: instance(withTags(map[string]string{"foo": "bar"})),
+			},
+		},
+		"AutoscaleExcludeStorage": {
+			args: args{
+				rds: &fake.MockRDSClient{
+					MockModify: func(input *awsrds.ModifyDBInstanceInput) awsrds.ModifyDBInstanceRequest {
+						if input.AllocatedStorage != nil {
+							return awsrds.ModifyDBInstanceRequest{
+								Request: &aws.Request{
+									HTTPRequest: &http.Request{},
+									Error:       errors.New("AllocatedStorage must not be set when on a modify request when AWS has autoscaled the storage"),
+								},
+							}
+						}
+						return awsrds.ModifyDBInstanceRequest{
+							Request: &aws.Request{HTTPRequest: &http.Request{}, Retryer: aws.NoOpRetryer{}, Data: &awsrds.ModifyDBInstanceOutput{}},
+						}
+					},
+					MockDescribe: func(input *awsrds.DescribeDBInstancesInput) awsrds.DescribeDBInstancesRequest {
+						return awsrds.DescribeDBInstancesRequest{
+							Request: &aws.Request{HTTPRequest: &http.Request{}, Retryer: aws.NoOpRetryer{}, Data: &awsrds.DescribeDBInstancesOutput{
+								DBInstances: []awsrds.DBInstance{{
+									MaxAllocatedStorage: aws.Int64(100),
+									AllocatedStorage:    aws.Int64(30),
+								}},
+							}},
+						}
+					},
+					MockAddTags: func(input *awsrds.AddTagsToResourceInput) awsrds.AddTagsToResourceRequest {
+						return awsrds.AddTagsToResourceRequest{
+							Request: &aws.Request{HTTPRequest: &http.Request{}, Retryer: aws.NoOpRetryer{}, Data: &awsrds.AddTagsToResourceOutput{}},
+						}
+					},
+				},
+				cr: instance(withMaxAllocatedStorage(100), withAllocatedStorage(20)),
+			},
+			want: want{
+				cr: instance(withMaxAllocatedStorage(100), withAllocatedStorage(20)),
 			},
 		},
 		"AlreadyModifying": {

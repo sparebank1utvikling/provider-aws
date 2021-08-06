@@ -160,6 +160,19 @@ func CreatePatch(in *rds.DBInstance, target *v1beta1.RDSInstanceParameters) (*v1
 	}
 	LateInitialize(currentParams, in)
 
+	// Don't attempt to scale down storage if autoscaling is enabled,
+	// and the current storage is larger than what was once
+	// requested. We still want to allow the user to manually scale
+	// the storage, so we only remove it if we're certain AWS will
+	// reject the value
+	if target.MaxAllocatedStorage != nil && aws.IntValue(target.AllocatedStorage) < aws.IntValue(currentParams.AllocatedStorage) {
+		// By making the values equal, CreateJSONPatch will exclude
+		// the field. It might seem more sensible to change the target
+		// object, but it's a pointer to the CR so we do not want to
+		// mutate it.
+		currentParams.AllocatedStorage = target.AllocatedStorage
+	}
+
 	jsonPatch, err := awsclients.CreateJSONPatch(currentParams, target)
 	if err != nil {
 		return nil, err
