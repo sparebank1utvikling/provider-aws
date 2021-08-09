@@ -782,6 +782,8 @@ const (
 	RDSInstanceStateBackingUp = "backing-up"
 	// The instance is being backed up, but is available
 	RDSInstanceStateConfiguringEnhancedMonitoring = "configuring-enhanced-monitoring"
+	// After you modify the storage size for a DB instance, the status of the DB instance is storage-optimization.
+	RDSInstanceStateStorageOptimization = "storage-optimization"
 	// The instance has failed and Amazon RDS can't recover it. Perform a point-in-time restore to the latest restorable time of the instance to recover the data.
 	RDSInstanceStateFailed = "failed"
 )
