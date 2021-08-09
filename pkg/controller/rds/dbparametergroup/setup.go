@@ -21,6 +21,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	"regexp"
+
 	svcapitypes "github.com/crossplane/provider-aws/apis/rds/v1alpha1"
 	awsclients "github.com/crossplane/provider-aws/pkg/clients"
 )
@@ -125,8 +127,14 @@ func (e *custom) isUpToDate(cr *svcapitypes.DBParameterGroup, obj *svcsdk.Descri
 			fmt.Println("missing ", awsclients.StringValue(v.ParameterName))
 			return false, nil
 		}
+		normalize := func(s string) string { return s }
+		if awsclients.StringValue(existing.DataType) == "list" {
+			normalize = func(s string) string {
+				return regexp.MustCompile(", +").ReplaceAllString(s, ",")
+			}
+		}
 		switch {
-		case awsclients.StringValue(existing.ParameterValue) != awsclients.StringValue(v.ParameterValue):
+		case normalize(awsclients.StringValue(existing.ParameterValue)) != normalize(awsclients.StringValue(v.ParameterValue)):
 			fmt.Printf("diff DBParameterValue %v %v %v", awsclients.StringValue(v.ParameterName), awsclients.StringValue(existing.ParameterValue), awsclients.StringValue(v.ParameterValue))
 			return false, nil
 		case awsclients.StringValue(existing.ApplyMethod) != awsclients.StringValue(v.ApplyMethod):
