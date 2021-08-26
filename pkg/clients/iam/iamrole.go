@@ -180,7 +180,13 @@ func IsRoleUpToDate(in v1beta1.IAMRoleParameters, observed iamtypes.Role) (bool,
 		return false, "", err
 	}
 
-	diff := cmp.Diff(desired, &observed, cmpopts.IgnoreInterfaces(struct{ resource.AttributeReferencer }{}), cmpopts.IgnoreFields(observed, "AssumeRolePolicyDocument"), cmpopts.IgnoreTypes(document.NoSerde{}))
+	diff := cmp.Diff(desired, &observed,
+		cmpopts.IgnoreInterfaces(struct{ resource.AttributeReferencer }{}),
+		cmpopts.SortSlices(func(a, b iamtypes.Tag) bool {
+			return aws.ToString(a.Key) < aws.ToString(b.Key)
+		}),
+		cmpopts.IgnoreFields(observed, "AssumeRolePolicyDocument"),
+		cmpopts.IgnoreTypes(document.NoSerde{}))
 	if diff == "" && policyUpToDate {
 		return true, diff, nil
 	}
