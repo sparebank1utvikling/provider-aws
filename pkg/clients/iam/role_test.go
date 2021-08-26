@@ -252,20 +252,31 @@ func TestIsRoleUpToDate(t *testing.T) {
 					Description:              &description,
 					MaxSessionDuration:       aws.Int32(1),
 					Path:                     aws.String("/"),
-					Tags: []iamtypes.Tag{{
-						Key:   aws.String("key1"),
-						Value: aws.String("value1"),
-					}},
+					Tags: []iamtypes.Tag{
+						{
+							Key:   aws.String("key1"),
+							Value: aws.String("value1"),
+						}, {
+							Key:   aws.String("key2"),
+							Value: aws.String("value2"),
+						},
+					},
 				},
 				p: v1beta1.RoleParameters{
 					Description:              &description,
 					AssumeRolePolicyDocument: assumeRolePolicyDocument,
 					MaxSessionDuration:       aws.Int32(1),
 					Path:                     aws.String("/"),
-					Tags: []v1beta1.Tag{{
-						Key:   "key1",
-						Value: "value1",
-					}},
+					Tags: []v1beta1.Tag{
+						{
+							Key:   "key2",
+							Value: "value2",
+						},
+						{
+							Key:   "key1",
+							Value: "value1",
+						},
+					},
 				},
 			},
 			want:     true,
