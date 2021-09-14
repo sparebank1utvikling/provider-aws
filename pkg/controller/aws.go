@@ -67,6 +67,7 @@ import (
 	"github.com/crossplane/provider-aws/pkg/controller/eks"
 	"github.com/crossplane/provider-aws/pkg/controller/eks/fargateprofile"
 	"github.com/crossplane/provider-aws/pkg/controller/eks/nodegroup"
+	"github.com/crossplane/provider-aws/pkg/controller/elasticache/cacheparametergroup"
 	"github.com/crossplane/provider-aws/pkg/controller/elasticloadbalancing/elb"
 	"github.com/crossplane/provider-aws/pkg/controller/elasticloadbalancing/elbattachment"
 	"github.com/crossplane/provider-aws/pkg/controller/identity/iamaccesskey"
@@ -183,6 +184,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll ti
 		resolverendpoint.SetupResolverEndpoint,
 		resolverrule.SetupResolverRule,
 		kafkacluster.SetupCluster,
+		cacheparametergroup.SetupCacheParameterGroup,
 	} {
 		if err := setup(mgr, l, rl, poll); err != nil {
 			return err
