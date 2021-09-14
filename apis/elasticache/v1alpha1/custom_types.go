@@ -16,7 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
-// CustomStageParameters includes the custom fields.
+// CustomCacheParameterGroupParameters includes the custom fields.
 type CustomCacheParameterGroupParameters struct {
 	// A list of parameters to associate with this DB parameter group
 	// +optional

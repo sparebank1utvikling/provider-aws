@@ -27,7 +27,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	svcapitypes "github.com/crossplane/provider-aws/apis/elasticache/v1alpha1"
@@ -66,12 +65,6 @@ func withParameter(k, v string) cacheParameterGroupModifier {
 			ParameterName:  awsclient.String(k),
 			ParameterValue: awsclient.String(v),
 		})
-	}
-}
-
-func withConditions(value ...xpv1.Condition) cacheParameterGroupModifier {
-	return func(o *svcapitypes.CacheParameterGroup) {
-		o.Status.SetConditions(value...)
 	}
 }
 
