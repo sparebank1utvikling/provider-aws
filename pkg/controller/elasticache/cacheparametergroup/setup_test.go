@@ -34,13 +34,8 @@ import (
 	awsclient "github.com/crossplane/provider-aws/pkg/clients"
 )
 
-type ElastiCacheAPI interface {
-	elasticacheiface.ElastiCacheAPI
-}
-
 const (
 	testCacheParameterGroupName = "some-db-subnet-group"
-	testDescription             = "some-description"
 )
 
 type cacheParameterGroupModifier func(*svcapitypes.CacheParameterGroup)
@@ -93,7 +88,6 @@ func (m *mockElastiCacheClient) DescribeCacheParametersPagesWithContext(ctx aws.
 
 func TestIsUpToDate(t *testing.T) {
 	type want struct {
-		cr       *svcapitypes.CacheParameterGroup
 		upToDate bool
 		wantErr  error
 	}

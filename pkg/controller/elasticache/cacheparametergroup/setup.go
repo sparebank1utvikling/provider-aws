@@ -44,11 +44,6 @@ import (
 	awsclient "github.com/crossplane/provider-aws/pkg/clients"
 )
 
-const (
-	errNotCacheParameterGroup = "managed resource is not a CacheParameterGroup custom resource"
-	errKubeUpdateFailed       = "cannot update CacheParameterGroup custom resource"
-)
-
 // SetupCacheParameterGroup adds a controller that reconciles a CacheParameterGroup.
 func SetupCacheParameterGroup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll time.Duration) error {
 	name := managed.ControllerName(svcapitypes.CacheParameterGroupKind)
