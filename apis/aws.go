@@ -38,6 +38,7 @@ import (
 	eksmanualv1alpha1 "github.com/crossplane/provider-aws/apis/eks/manualv1alpha1"
 	eksv1alpha1 "github.com/crossplane/provider-aws/apis/eks/v1alpha1"
 	eksv1beta1 "github.com/crossplane/provider-aws/apis/eks/v1beta1"
+	elasticachev1alpha1 "github.com/crossplane/provider-aws/apis/elasticache/v1alpha1"
 	elasticloadbalancingv1alpha1 "github.com/crossplane/provider-aws/apis/elasticloadbalancing/v1alpha1"
 	gluev1alpha1 "github.com/crossplane/provider-aws/apis/glue/v1alpha1"
 	identityv1alpha1 "github.com/crossplane/provider-aws/apis/identity/v1alpha1"
@@ -70,6 +71,7 @@ func init() {
 		databasev1beta1.SchemeBuilder.AddToScheme,
 		docdbv1alpha1.AddToScheme,
 		elasticloadbalancingv1alpha1.SchemeBuilder.AddToScheme,
+		elasticachev1alpha1.SchemeBuilder.AddToScheme,
 		identityv1alpha1.SchemeBuilder.AddToScheme,
 		identityv1beta1.SchemeBuilder.AddToScheme,
 		route53v1alpha1.SchemeBuilder.AddToScheme,

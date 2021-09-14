@@ -74,6 +74,7 @@ import (
 	"github.com/crossplane/provider-aws/pkg/controller/eks/fargateprofile"
 	"github.com/crossplane/provider-aws/pkg/controller/eks/identityproviderconfig"
 	"github.com/crossplane/provider-aws/pkg/controller/eks/nodegroup"
+	"github.com/crossplane/provider-aws/pkg/controller/elasticache/cacheparametergroup"
 	"github.com/crossplane/provider-aws/pkg/controller/elasticloadbalancing/elb"
 	"github.com/crossplane/provider-aws/pkg/controller/elasticloadbalancing/elbattachment"
 	glueclassifier "github.com/crossplane/provider-aws/pkg/controller/glue/classifier"
@@ -205,6 +206,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll ti
 		function.SetupFunction,
 		openidconnectprovider.SetupOpenIDConnectProvider,
 		distribution.SetupDistribution,
+		cacheparametergroup.SetupCacheParameterGroup,
 		cachepolicy.SetupCachePolicy,
 		resolverendpoint.SetupResolverEndpoint,
 		resolverrule.SetupResolverRule,
