@@ -22,7 +22,7 @@ jobs:
       - name: Build
         run: make -j2 build BRANCH_NAME=${GITHUB_REF##*/}
         env:
-          VERSION: "0.20-sb1-32"
+          VERSION: "0.20-sb1-33"
           CHANNEL: "master"
           DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
 
@@ -32,6 +32,6 @@ jobs:
       - name: Promote Artifacts
         run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/} PLATFORMS=linux_amd64
         env:
-          VERSION: "0.20-sb1-32"
+          VERSION: "0.20-sb1-33"
           CHANNEL: "master"
           DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
