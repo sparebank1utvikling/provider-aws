@@ -121,9 +121,44 @@ func TestObserve(t *testing.T) {
 	}{
 		"Successful": {
 			args: args{
-				kube: &test.MockClient{
-					MockUpdate: test.NewMockClient().Update,
+				repository: &fake.MockRepositoryClient{
+					MockDescribe: func(ctx context.Context, input *awsecr.DescribeRepositoriesInput, opts []func(*awsecr.Options)) (*awsecr.DescribeRepositoriesOutput, error) {
+						return &awsecr.DescribeRepositoriesOutput{
+							Repositories: []awsecrtypes.Repository{{
+								RepositoryArn:      &testARN,
+								RepositoryName:     &repoName,
+								ImageTagMutability: awsecrtypes.ImageTagMutabilityMutable,
+							}},
+						}, nil
+					},
+					MockListTags: func(ctx context.Context, input *awsecr.ListTagsForResourceInput, opts []func(*awsecr.Options)) (*awsecr.ListTagsForResourceOutput, error) {
+						return &awsecr.ListTagsForResourceOutput{
+							Tags: []awsecrtypes.Tag{testECRTag},
+						}, nil
+					},
 				},
+				cr: repository(withSpec(v1alpha1.RepositoryParameters{
+					ImageTagMutability: aws.String(string(awsecrtypes.ImageTagMutabilityMutable)),
+					Tags:               []v1alpha1.Tag{testTag},
+				}), withExternalName(repoName)),
+			},
+			want: want{
+				cr: repository(withSpec(v1alpha1.RepositoryParameters{
+					ImageTagMutability: aws.String(string(awsecrtypes.ImageTagMutabilityMutable)),
+					Tags:               []v1alpha1.Tag{testTag},
+				}), withStatus(v1alpha1.RepositoryObservation{
+					RepositoryName: repoName,
+					RepositoryArn:  testARN,
+				}), withExternalName(repoName),
+					withConditions(xpv1.Available())),
+				result: managed.ExternalObservation{
+					ResourceExists:   true,
+					ResourceUpToDate: true,
+				},
+			},
+		},
+		"SuccessfulLateInit": {
+			args: args{
 				repository: &fake.MockRepositoryClient{
 					MockDescribe: func(ctx context.Context, input *awsecr.DescribeRepositoriesInput, opts []func(*awsecr.Options)) (*awsecr.DescribeRepositoriesOutput, error) {
 						return &awsecr.DescribeRepositoriesOutput{
@@ -154,8 +189,9 @@ func TestObserve(t *testing.T) {
 				}), withExternalName(repoName),
 					withConditions(xpv1.Available())),
 				result: managed.ExternalObservation{
-					ResourceExists:   true,
-					ResourceUpToDate: true,
+					ResourceExists:          true,
+					ResourceUpToDate:        true,
+					ResourceLateInitialized: true,
 				},
 			},
 		},

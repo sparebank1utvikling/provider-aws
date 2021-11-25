@@ -137,19 +137,16 @@ func (e *external) Observe(ctx context.Context, mgd resource.Managed) (managed.E
 	// update the CRD spec for any new values from provider
 	current := cr.Spec.ForProvider.DeepCopy()
 	ecr.LateInitializeRepository(&cr.Spec.ForProvider, &observed)
-	if !cmp.Equal(current, &cr.Spec.ForProvider) {
-		if err := e.kube.Update(ctx, cr); err != nil {
-			return managed.ExternalObservation{}, awsclient.Wrap(err, errSpecUpdate)
-		}
-	}
+	resourceLateInitialized := !cmp.Equal(current, &cr.Spec.ForProvider)
 
 	cr.SetConditions(xpv1.Available())
 
 	cr.Status.AtProvider = ecr.GenerateRepositoryObservation(observed)
 
 	return managed.ExternalObservation{
-		ResourceExists:   true,
-		ResourceUpToDate: ecr.IsRepositoryUpToDate(&cr.Spec.ForProvider, tagsResp.Tags, &observed),
+		ResourceExists:          true,
+		ResourceUpToDate:        ecr.IsRepositoryUpToDate(&cr.Spec.ForProvider, tagsResp.Tags, &observed),
+		ResourceLateInitialized: resourceLateInitialized,
 	}, nil
 }
 
