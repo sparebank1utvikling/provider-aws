@@ -18,6 +18,8 @@ package repository
 
 import (
 	"context"
+	"log"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsecr "github.com/aws/aws-sdk-go-v2/service/ecr"
@@ -254,15 +256,18 @@ func (t *tagger) Initialize(ctx context.Context, mgd resource.Managed) error {
 	for _, t := range cr.Spec.ForProvider.Tags {
 		tagMap[t.Key] = t.Value
 	}
-	for k, v := range resource.GetExternalTags(mgd) {
-		if tagMap[k] != v {
-			cr.Spec.ForProvider.Tags = append(cr.Spec.ForProvider.Tags, v1beta1.Tag{Key: k, Value: v})
-			added = true
+	if os.Getenv("EXTERNAL_TAGS_DISABLE") == "" {
+		for k, v := range resource.GetExternalTags(mgd) {
+			if tagMap[k] != v {
+				cr.Spec.ForProvider.Tags = append(cr.Spec.ForProvider.Tags, v1beta1.Tag{Key: k, Value: v})
+				added = true
+			}
 		}
 	}
 	if !added {
 		return nil
 	}
+	log.Println("initialize ecr", cr.Name)
 	return errors.Wrap(t.kube.Update(ctx, cr), errKubeUpdateFailed)
 }
 
