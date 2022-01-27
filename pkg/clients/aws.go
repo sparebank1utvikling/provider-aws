@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
 	"strings"
@@ -960,7 +961,11 @@ func IsPolicyUpToDate(local, remote *string) bool {
 		// panicing.
 		return false
 	})
-	return cmp.Equal(localUnmarshalled, remoteUnmarshalled, cmpopts.EquateEmpty(), sortSlicesOpt)
+	diff := cmp.Diff(localUnmarshalled, remoteUnmarshalled, cmpopts.EquateEmpty(), sortSlicesOpt)
+	if diff != "" {
+		log.Println("diff" + diff)
+	}
+	return diff == ""
 }
 
 // Wrap will remove the request-specific information from the error and only then
