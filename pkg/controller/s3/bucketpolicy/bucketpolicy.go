@@ -122,6 +122,7 @@ func (e *external) Observe(ctx context.Context, mgd resource.Managed) (managed.E
 	return managed.ExternalObservation{
 		ResourceExists:   true,
 		ResourceUpToDate: cmp.Equal(*policyData, *resp.Policy),
+		Diff:             cmp.Diff(*policyData, *resp.Policy),
 	}, nil
 }
 
