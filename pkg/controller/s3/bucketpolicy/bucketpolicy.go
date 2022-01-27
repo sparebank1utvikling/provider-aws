@@ -114,7 +114,6 @@ func (e *external) Observe(ctx context.Context, mgd resource.Managed) (managed.E
 	}
 
 	policyData, err := e.formatBucketPolicy(cr)
-
 	if err != nil {
 		return managed.ExternalObservation{}, awsclient.Wrap(resource.Ignore(s3.IsErrorPolicyNotFound, err), errGet)
 	}
@@ -124,7 +123,7 @@ func (e *external) Observe(ctx context.Context, mgd resource.Managed) (managed.E
 	// If our version and the external version are the same, we return ResourceUpToDate: true
 	return managed.ExternalObservation{
 		ResourceExists:   true,
-		ResourceUpToDate: cmp.Equal(*policyData, *resp.Policy),
+		ResourceUpToDate: awsclient.IsPolicyUpToDate(policyData, resp.Policy),
 		Diff:             cmp.Diff(*policyData, *resp.Policy),
 	}, nil
 }
