@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -39,6 +40,7 @@ import (
 	awsv1 "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	credentialsv1 "github.com/aws/aws-sdk-go/aws/credentials"
+	stscredsv1 "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	endpointsv1 "github.com/aws/aws-sdk-go/aws/endpoints"
 	requestv1 "github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -99,12 +101,20 @@ var userAgentV1 = requestv1.NamedHandler{
 	Fn:   requestv1.MakeAddToUserAgentHandler("crossplane-provider-aws", version.Version),
 }
 
+var (
+	mu              sync.Mutex
+	defaultConfigV2 *aws.Config
+	defaultConfigV1 *awsv1.Config
+)
+
 // GetConfig constructs an *aws.Config that can be used to authenticate to AWS
 // API by the AWS clients.
 func GetConfig(ctx context.Context, c client.Client, mg resource.Managed, region string) (*aws.Config, error) {
 	switch {
 	case mg.GetProviderConfigReference() != nil:
-		return UseProviderConfig(ctx, c, mg, region)
+		conf, err := UseProviderConfig(ctx, c, mg, region)
+
+		return conf, err
 	case mg.GetProviderReference() != nil:
 		return UseProvider(ctx, c, mg, region)
 	default:
@@ -424,22 +434,22 @@ func UsePodServiceAccountAssumeRoleWithWebIdentity(ctx context.Context, _ []byte
 // UsePodServiceAccount assumes an IAM role configured via a ServiceAccount.
 // https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 func UsePodServiceAccount(ctx context.Context, _ []byte, _, region string) (*aws.Config, error) {
-	if region == GlobalRegion {
-		cfg, err := config.LoadDefaultConfig(
-			ctx,
-			userAgentV2,
-		)
-		return &cfg, errors.Wrap(err, "failed to load default AWS config")
+	mu.Lock()
+	defer mu.Unlock()
+
+	if defaultConfigV2 == nil {
+		cfg, err := config.LoadDefaultConfig(ctx, userAgentV2)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load default AWS config")
+		}
+		defaultConfigV2 = &cfg
 	}
-	cfg, err := config.LoadDefaultConfig(
-		ctx,
-		userAgentV2,
-		config.WithRegion(region),
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed to load default AWS config with region %s", region))
+
+	cfg := defaultConfigV2.Copy()
+	if region != GlobalRegion {
+		cfg.Region = region
 	}
-	return &cfg, err
+	return &cfg, nil
 }
 
 // NOTE(muvaf): ACK-generated controllers use aws/aws-sdk-go instead of
@@ -682,25 +692,26 @@ func UsePodServiceAccountV1AssumeRoleWithWebIdentity(ctx context.Context, _ []by
 // UsePodServiceAccountV1 assumes an IAM role configured via a ServiceAccount.
 // https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 func UsePodServiceAccountV1(ctx context.Context, _ []byte, pc *v1beta1.ProviderConfig, _, region string) (*awsv1.Config, error) {
-	cfg, err := config.LoadDefaultConfig(
-		ctx,
-		userAgentV2,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load default AWS config")
+	mu.Lock()
+	defer mu.Unlock()
+	if defaultConfigV1 == nil {
+		cfg := awsv1.NewConfig()
+		sess, err := GetSessionV1(cfg)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load default AWS config")
+		}
+		envCfg, err := config.NewEnvConfig()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load default AWS env config")
+		}
+		creds := stscredsv1.NewWebIdentityCredentials(sess, envCfg.RoleARN, envCfg.RoleSessionName, envCfg.WebIdentityTokenFilePath)
+		defaultConfigV1 = cfg.WithCredentials(creds)
 	}
-	v2creds, err := cfg.Credentials.Retrieve(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve credentials")
+	cfg := defaultConfigV1.Copy()
+	if region != GlobalRegion {
+		cfg = cfg.WithRegion(region)
 	}
-	if region == GlobalRegion {
-		region = cfg.Region
-	}
-	v1creds := credentialsv1.NewStaticCredentials(
-		v2creds.AccessKeyID,
-		v2creds.SecretAccessKey,
-		v2creds.SessionToken)
-	return SetResolverV1(pc, awsv1.NewConfig().WithCredentials(v1creds).WithRegion(region)), nil
+	return SetResolverV1(pc, cfg), nil
 }
 
 // SetResolverV1 parses annotations from the managed resource
