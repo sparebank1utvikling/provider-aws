@@ -65,19 +65,16 @@ jobs:
           # We're using docker buildx, which doesn't actually load the images it
           # builds by default. Specifying --load does so.
           BUILD_ARGS: "--load"
+          VERSION: "0.25-sb1"
+          CHANNEL: "master"
+          DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
 
-      - uses: docker/login-action@v1
+      - name: Login to Docker
+        uses: docker/login-action@v1
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.CR_PAT }}
-
-      - name: Build
-        run: make -j2 build BRANCH_NAME=${GITHUB_REF##*/}
-        env:
-          VERSION: "0.25-sb1"
-          CHANNEL: "master"
-          DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
 
       - name: Disable arm64
         run:  sed -i s,linux_arm64,, cluster/images/*/Makefile
