@@ -15,6 +15,8 @@ package cluster
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"strings"
 
 	svcsdk "github.com/aws/aws-sdk-go/service/kafka"
@@ -88,6 +90,17 @@ func preObserve(_ context.Context, cr *svcapitypes.Cluster, obj *svcsdk.Describe
 	return nil
 }
 
+// The difference between zookeeper- and cluster endpoints is that zookeeper endpoints starts with z- and cluster
+// endpoints starts with b-. The ports can also be different.
+func zooKeeperToClusterEndpoint(connString string, srcPort, dstPort string) string {
+	re := regexp.MustCompile(fmt.Sprintf(`^z(\S+):%s`, srcPort))
+	parts := make([]string, 0, len(connString))
+	for _, s := range strings.Split(connString, ",") {
+		parts = append(parts, re.ReplaceAllString(s, fmt.Sprintf("b$1:%s", dstPort)))
+	}
+	return strings.Join(parts, ",")
+}
+
 func postObserve(_ context.Context, cr *svcapitypes.Cluster, obj *svcsdk.DescribeClusterOutput, obs managed.ExternalObservation, err error) (managed.ExternalObservation, error) {
 	if err != nil {
 		return managed.ExternalObservation{}, err
@@ -103,14 +116,18 @@ func postObserve(_ context.Context, cr *svcapitypes.Cluster, obj *svcsdk.Describ
 		cr.SetConditions(xpv1.Deleting())
 	}
 
+	clusterEndpointPlain := []byte(zooKeeperToClusterEndpoint(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9092"))
+	clusterEndpointTLS := []byte(zooKeeperToClusterEndpoint(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9094"))
+	clusterEndpointIAM := []byte(zooKeeperToClusterEndpoint(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9098"))
+
 	obs.ConnectionDetails = managed.ConnectionDetails{
 		// see: https://docs.aws.amazon.com/msk/latest/developerguide/client-access.html
 		// no endpoint informations available in DescribeClusterOutput only endpoints for zookeeperPlain/Tls
 		"zookeeperEndpointPlain": []byte(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString)),
 		"zookeeperEndpointTls":   []byte(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectStringTls)),
-		"clusterEndpointPlain":   []byte(strings.ReplaceAll(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9092")),
-		"clusterEndpointTls":     []byte(strings.ReplaceAll(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9094")),
-		"clusterEndpointIAM":     []byte(strings.ReplaceAll(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9098")),
+		"clusterEndpointPlain":   clusterEndpointPlain,
+		"clusterEndpointTls":     clusterEndpointTLS,
+		"clusterEndpointIAM":     clusterEndpointIAM,
 	}
 
 	return obs, nil
