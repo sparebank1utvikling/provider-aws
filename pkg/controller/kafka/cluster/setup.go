@@ -94,7 +94,7 @@ func preObserve(_ context.Context, cr *svcapitypes.Cluster, obj *svcsdk.Describe
 // endpoints starts with b-. The ports can also be different.
 func zooKeeperToClusterEndpoint(connString string, srcPort, dstPort string) string {
 	re := regexp.MustCompile(fmt.Sprintf(`^z(\S+):%s`, srcPort))
-	parts := make([]string, 0, len(connString))
+	parts := make([]string, 0, 3)
 	for _, s := range strings.Split(connString, ",") {
 		parts = append(parts, re.ReplaceAllString(s, fmt.Sprintf("b$1:%s", dstPort)))
 	}
