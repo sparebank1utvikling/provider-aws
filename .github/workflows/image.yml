@@ -65,7 +65,7 @@ jobs:
           # We're using docker buildx, which doesn't actually load the images it
           # builds by default. Specifying --load does so.
           BUILD_ARGS: "--load"
-          VERSION: "0.29-sb1-2"
+          VERSION: "0.29-sb1-4"
           CHANNEL: "master"
           DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
 
@@ -82,6 +82,6 @@ jobs:
       - name: Promote Artifacts
         run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/} PLATFORMS=linux_amd64
         env:
-          VERSION: "0.29-sb1-2"
+          VERSION: "0.29-sb1-4"
           CHANNEL: "master"
           DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
