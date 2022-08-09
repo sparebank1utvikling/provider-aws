@@ -51,6 +51,7 @@ func SetupTaskDefinition(mgr ctrl.Manager, o controller.Options) error {
 			managed.WithPollInterval(o.PollInterval),
 			managed.WithLogger(o.Logger.WithValues("controller", name)),
 			managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			managed.WithMetricsReconciler(o.MetricsReconciler),
 			managed.WithConnectionPublishers(cps...)))
 }
 
