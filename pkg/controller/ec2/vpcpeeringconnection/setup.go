@@ -61,6 +61,7 @@ func SetupVPCPeeringConnection(mgr ctrl.Manager, o controller.Options) error {
 			managed.WithLogger(o.Logger.WithValues("controller", name)),
 			managed.WithInitializers(&tagger{kube: mgr.GetClient()}),
 			managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			managed.WithMetricsReconciler(o.MetricsReconciler),
 			managed.WithConnectionPublishers(cps...)))
 }
 

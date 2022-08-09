@@ -28,12 +28,14 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xpcontroller "github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane-contrib/provider-aws/apis"
@@ -53,6 +55,7 @@ func main() {
 
 		namespace                  = app.Flag("namespace", "Namespace used to set as default scope in default secret store config.").Default("crossplane-system").Envar("POD_NAMESPACE").String()
 		enableExternalSecretStores = app.Flag("enable-external-secret-stores", "Enable support for ExternalSecretStores.").Default("false").Envar("ENABLE_EXTERNAL_SECRET_STORES").Bool()
+		enableEnhancedMetrics      = app.Flag("enable-enhanced-metrics", "Enable enhanced prometheus metrics.").Default("false").Envar("ENABLE_ENHANCED_METRICS").Bool()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -114,6 +117,12 @@ func main() {
 				},
 			},
 		})), "cannot create default store config")
+	}
+
+	if *enableEnhancedMetrics {
+		o.MetricsReconciler = managed.NewPrometheusMetricsReconciler(metrics.Registry)
+	} else {
+		o.MetricsReconciler = managed.NewNopMetricsReconciler()
 	}
 
 	kingpin.FatalIfError(controller.Setup(mgr, o), "Cannot setup AWS controllers")

@@ -56,6 +56,7 @@ func SetupKey(mgr ctrl.Manager, o controller.Options) error {
 			managed.WithInitializers(),
 			managed.WithLogger(o.Logger.WithValues("controller", name)),
 			managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			managed.WithMetricsReconciler(o.MetricsReconciler),
 			managed.WithConnectionPublishers(cps...)))
 }
 
