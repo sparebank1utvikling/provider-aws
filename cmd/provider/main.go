@@ -55,7 +55,7 @@ func main() {
 
 		namespace                  = app.Flag("namespace", "Namespace used to set as default scope in default secret store config.").Default("crossplane-system").Envar("POD_NAMESPACE").String()
 		enableExternalSecretStores = app.Flag("enable-external-secret-stores", "Enable support for ExternalSecretStores.").Default("false").Envar("ENABLE_EXTERNAL_SECRET_STORES").Bool()
-		enableEnhancedMetrics      = app.Flag("enable-enhanced-metrics", "Enable enhanced prometheus metrics.").Default("false").Envar("ENABLE_ENHANCED_METRICS").Bool()
+		enableEnhancedMetrics      = app.Flag("enable-enhanced-metrics", "Enable enhanced prometheus metrics.").Default("true").Envar("ENABLE_ENHANCED_METRICS").Bool()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
