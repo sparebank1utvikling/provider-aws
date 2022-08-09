@@ -5,14 +5,14 @@ on:
 
 env:
   # Common versions
-  GO_VERSION: '1.17'
-  GOLANGCI_VERSION: 'v1.31'
-  DOCKER_BUILDX_VERSION: 'v0.4.2'
+  GO_VERSION: '1.18'
+  GOLANGCI_VERSION: 'v1.47'
+  DOCKER_BUILDX_VERSION: 'v0.8.2'
 
 jobs:
   build-image:
     name: Push Docker image to GitHub Packages
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
