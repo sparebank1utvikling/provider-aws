@@ -110,7 +110,7 @@ go.cachedir:
 run: go.build
 	@$(INFO) Running Crossplane locally out-of-cluster . . .
 	@# To see other arguments that can be provided, run the command with --help instead
-	$(GO_OUT_DIR)/provider --debug
+	$(GO_OUT_DIR)/provider --debug --enable-enhanced-metrics
 
 .PHONY: cobertura manifests submodules fallthrough test-integration run crds.clean
 
