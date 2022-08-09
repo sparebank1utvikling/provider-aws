@@ -59,7 +59,8 @@ func SetupEnvironment(mgr ctrl.Manager, o controller.Options) error {
 			managed.WithExternalConnecter(&connector{kube: mgr.GetClient(), opts: opts}),
 			managed.WithPollInterval(o.PollInterval),
 			managed.WithLogger(o.Logger.WithValues("controller", name)),
-			managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
+			managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			managed.WithMetricsReconciler(o.MetricsReconciler)))
 }
 
 type custom struct {

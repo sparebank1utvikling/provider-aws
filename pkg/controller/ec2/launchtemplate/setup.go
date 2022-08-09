@@ -52,6 +52,7 @@ func SetupLaunchTemplate(mgr ctrl.Manager, o controller.Options) error {
 			managed.WithInitializers(managed.NewNameAsExternalName(mgr.GetClient()), &tagger{kube: mgr.GetClient()}),
 			managed.WithLogger(o.Logger.WithValues("controller", name)),
 			managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			managed.WithMetricsReconciler(o.MetricsReconciler),
 			managed.WithConnectionPublishers(cps...)))
 }
 
