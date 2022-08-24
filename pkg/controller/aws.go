@@ -134,6 +134,7 @@ import (
 	"github.com/crossplane-contrib/provider-aws/pkg/controller/iot/thing"
 	kafkacluster "github.com/crossplane-contrib/provider-aws/pkg/controller/kafka/cluster"
 	kafkaconfiguration "github.com/crossplane-contrib/provider-aws/pkg/controller/kafka/configuration"
+	"github.com/crossplane-contrib/provider-aws/pkg/controller/kafka/scramsecretassociation"
 	kinesisstream "github.com/crossplane-contrib/provider-aws/pkg/controller/kinesis/stream"
 	"github.com/crossplane-contrib/provider-aws/pkg/controller/kms/alias"
 	"github.com/crossplane-contrib/provider-aws/pkg/controller/kms/key"
@@ -283,6 +284,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		vpcpeeringconnection.SetupVPCPeeringConnection,
 		vpcendpoint.SetupVPCEndpoint,
 		kafkacluster.SetupCluster,
+		scramsecretassociation.SetupScramSecretAssociation,
 		efsmounttarget.SetupMountTarget,
 		transferserver.SetupServer,
 		transferuser.SetupUser,

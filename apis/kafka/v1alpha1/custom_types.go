@@ -90,3 +90,33 @@ type CustomBrokerNodeGroupInfo struct {
 	// Contains information about storage volumes attached to MSK broker nodes.
 	StorageInfo *StorageInfo `json:"storageInfo,omitempty"`
 }
+
+type CustomScramSecretAssociationParameters struct {
+	// +optional
+	// +crossplane:generate:reference:type=github.com/crossplane-contrib/provider-aws/apis/secretsmanager/v1beta1.Secret
+	// +crossplane:generate:reference:extractor=github.com/crossplane-contrib/provider-aws/apis/secretsmanager/v1beta1.SecretARN()
+	SecretARNList []*string `json:"secretARNList,omitempty"`
+
+	// SecretARNListRefs is a list of references to Secrets used to set
+	// the ClientSubnets.
+	// +optional
+	SecretARNListRefs []xpv1.Reference `json:"secretARNListRefs,omitempty"`
+
+	// SecretARNListSelector selects references to Secrets used
+	// to set the SecretARNListRefs.
+	// +optional
+	SecretARNListSelector *xpv1.Selector `json:"secretARNListSelector,omitempty"`
+
+	// ClusterARN of the configuration to use.
+	// +optional
+	// +crossplane:generate:reference:type=Cluster
+	ClusterARN *string `json:"clusterARN,omitempty"`
+
+	// ClusterARNRef is a reference to a Kafka Cluster used to set ClusterARN.
+	// +optional
+	ClusterARNRef *xpv1.Reference `json:"clusterARNRef,omitempty"`
+
+	// ClusterARNSelector selects a reference to a Kafka Cluster used to set ClusterARN.
+	// +optional
+	ClusterARNSelector *xpv1.Selector `json:"clusterARNSelector,omitempty"`
+}
