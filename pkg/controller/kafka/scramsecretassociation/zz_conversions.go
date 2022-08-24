@@ -35,6 +35,17 @@ func GenerateBatchAssociateScramSecretInput(cr *svcapitypes.ScramSecretAssociati
 	return res
 }
 
+// GenerateBatchDisassociateScramSecretInput returns a deletion input.
+func GenerateBatchDisassociateScramSecretInput(cr *svcapitypes.ScramSecretAssociation) *svcsdk.BatchDisassociateScramSecretInput {
+	res := &svcsdk.BatchDisassociateScramSecretInput{}
+
+	if cr.Status.AtProvider.ClusterARN != nil {
+		res.SetClusterArn(*cr.Status.AtProvider.ClusterARN)
+	}
+
+	return res
+}
+
 // IsNotFound returns whether the given error is of type NotFound or not.
 func IsNotFound(err error) bool {
 	awsErr, ok := err.(awserr.Error)

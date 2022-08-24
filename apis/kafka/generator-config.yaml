@@ -1,8 +1,15 @@
 operations:
    BatchAssociateScramSecret:
     resource_name: ScramSecretAssociation
-    operation_type:
-    - Create
+    operation_type: Create
+#   ListScramSecrets:
+#    resource_name: ScramSecretAssociation
+#    operation_type:
+#    - ReadOne
+#    - Get
+   BatchDisassociateScramSecret:
+    resource_name: ScramSecretAssociation
+    operation_type: Delete
 ignore:
   field_paths:
     - CreateClusterInput.BrokerNodeGroupInfo
