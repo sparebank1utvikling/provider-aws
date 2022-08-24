@@ -1,3 +1,8 @@
+operations:
+   BatchAssociateScramSecret:
+    resource_name: ScramSecretAssociation
+    operation_type:
+    - Create
 ignore:
   field_paths:
     - CreateClusterInput.BrokerNodeGroupInfo
@@ -5,6 +10,9 @@ ignore:
     - CreateClusterInput.ConfigurationInfo
     - CreateConfigurationInput.Name
     - CreateConfigurationInput.ServerProperties
+    - BatchAssociateScramSecretInput.ClusterArn
+    - BatchAssociateScramSecretInput.SecretArnList
+    - BatchAssociateScramSecretOutput.UnprocessedScramSecrets
 resources:
   Configuration:
     exceptions:
