@@ -21,6 +21,7 @@ package v1alpha1
 import (
 	"context"
 	v1beta1 "github.com/crossplane-contrib/provider-aws/apis/ec2/v1beta1"
+	v1beta11 "github.com/crossplane-contrib/provider-aws/apis/secretsmanager/v1beta1"
 	reference "github.com/crossplane/crossplane-runtime/pkg/reference"
 	errors "github.com/pkg/errors"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
@@ -88,6 +89,49 @@ func (mg *Cluster) ResolveReferences(ctx context.Context, c client.Reader) error
 		mg.Spec.ForProvider.CustomClusterParameters.CustomConfigurationInfo.ARNRef = rsp.ResolvedReference
 
 	}
+
+	return nil
+}
+
+// ResolveReferences of this ScramSecretAssociation.
+func (mg *ScramSecretAssociation) ResolveReferences(ctx context.Context, c client.Reader) error {
+	r := reference.NewAPIResolver(c, mg)
+
+	var rsp reference.ResolutionResponse
+	var mrsp reference.MultiResolutionResponse
+	var err error
+
+	mrsp, err = r.ResolveMultiple(ctx, reference.MultiResolutionRequest{
+		CurrentValues: reference.FromPtrValues(mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNList),
+		Extract:       reference.ExternalName(),
+		References:    mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNListRefs,
+		Selector:      mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNListSelector,
+		To: reference.To{
+			List:    &v1beta11.SecretList{},
+			Managed: &v1beta11.Secret{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNList")
+	}
+	mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNList = reference.ToPtrValues(mrsp.ResolvedValues)
+	mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNListRefs = mrsp.ResolvedReferences
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.CustomScramSecretAssociationParameters.ClusterARN),
+		Extract:      reference.ExternalName(),
+		Reference:    mg.Spec.ForProvider.CustomScramSecretAssociationParameters.ClusterARNRef,
+		Selector:     mg.Spec.ForProvider.CustomScramSecretAssociationParameters.ClusterARNSelector,
+		To: reference.To{
+			List:    &ClusterList{},
+			Managed: &Cluster{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.CustomScramSecretAssociationParameters.ClusterARN")
+	}
+	mg.Spec.ForProvider.CustomScramSecretAssociationParameters.ClusterARN = reference.ToPtrValue(rsp.ResolvedValue)
+	mg.Spec.ForProvider.CustomScramSecretAssociationParameters.ClusterARNRef = rsp.ResolvedReference
 
 	return nil
 }
