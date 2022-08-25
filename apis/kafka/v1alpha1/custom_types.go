@@ -94,6 +94,7 @@ type CustomBrokerNodeGroupInfo struct {
 type CustomScramSecretAssociationParameters struct {
 	// +optional
 	// +crossplane:generate:reference:type=github.com/crossplane-contrib/provider-aws/apis/secretsmanager/v1beta1.Secret
+	// +crossplane:generate:reference:extractor=github.com/crossplane-contrib/provider-aws/apis/secretsmanager/v1beta1.SecretARN()
 	SecretARNList []*string `json:"secretARNList,omitempty"`
 
 	// SecretARNListRefs is a list of references to Secrets used to set

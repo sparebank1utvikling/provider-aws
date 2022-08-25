@@ -101,16 +101,8 @@ func (e *external) Delete(ctx context.Context, mg cpresource.Managed) error {
 		return errors.New(errUnexpectedObject)
 	}
 	cr.Status.SetConditions(xpv1.Deleting())
-	input := GenerateBatchDisassociateScramSecretInput(cr)
-	ignore, err := e.preDelete(ctx, cr, input)
-	if err != nil {
-		return errors.Wrap(err, "pre-delete failed")
-	}
-	if ignore {
-		return nil
-	}
-	resp, err := e.client.BatchDisassociateScramSecretWithContext(ctx, input)
-	return e.postDelete(ctx, cr, resp, awsclient.Wrap(cpresource.Ignore(IsNotFound, err), errDelete))
+	return e.delete(ctx, mg)
+
 }
 
 type option func(*external)
@@ -122,8 +114,7 @@ func newExternal(kube client.Client, client svcsdkapi.KafkaAPI, opts []option) *
 		observe:    nopObserve,
 		preCreate:  nopPreCreate,
 		postCreate: nopPostCreate,
-		preDelete:  nopPreDelete,
-		postDelete: nopPostDelete,
+		delete:     nopDelete,
 		update:     nopUpdate,
 	}
 	for _, f := range opts {
@@ -138,8 +129,7 @@ type external struct {
 	observe    func(context.Context, cpresource.Managed) (managed.ExternalObservation, error)
 	preCreate  func(context.Context, *svcapitypes.ScramSecretAssociation, *svcsdk.BatchAssociateScramSecretInput) error
 	postCreate func(context.Context, *svcapitypes.ScramSecretAssociation, *svcsdk.BatchAssociateScramSecretOutput, managed.ExternalCreation, error) (managed.ExternalCreation, error)
-	preDelete  func(context.Context, *svcapitypes.ScramSecretAssociation, *svcsdk.BatchDisassociateScramSecretInput) (bool, error)
-	postDelete func(context.Context, *svcapitypes.ScramSecretAssociation, *svcsdk.BatchDisassociateScramSecretOutput, error) error
+	delete     func(context.Context, cpresource.Managed) error
 	update     func(context.Context, cpresource.Managed) (managed.ExternalUpdate, error)
 }
 
@@ -153,11 +143,8 @@ func nopPreCreate(context.Context, *svcapitypes.ScramSecretAssociation, *svcsdk.
 func nopPostCreate(_ context.Context, _ *svcapitypes.ScramSecretAssociation, _ *svcsdk.BatchAssociateScramSecretOutput, cre managed.ExternalCreation, err error) (managed.ExternalCreation, error) {
 	return cre, err
 }
-func nopPreDelete(context.Context, *svcapitypes.ScramSecretAssociation, *svcsdk.BatchDisassociateScramSecretInput) (bool, error) {
-	return false, nil
-}
-func nopPostDelete(_ context.Context, _ *svcapitypes.ScramSecretAssociation, _ *svcsdk.BatchDisassociateScramSecretOutput, err error) error {
-	return err
+func nopDelete(context.Context, cpresource.Managed) error {
+	return nil
 }
 func nopUpdate(context.Context, cpresource.Managed) (managed.ExternalUpdate, error) {
 	return managed.ExternalUpdate{}, nil

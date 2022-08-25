@@ -103,7 +103,7 @@ func (mg *ScramSecretAssociation) ResolveReferences(ctx context.Context, c clien
 
 	mrsp, err = r.ResolveMultiple(ctx, reference.MultiResolutionRequest{
 		CurrentValues: reference.FromPtrValues(mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNList),
-		Extract:       reference.ExternalName(),
+		Extract:       v1beta11.SecretARN(),
 		References:    mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNListRefs,
 		Selector:      mg.Spec.ForProvider.CustomScramSecretAssociationParameters.SecretARNListSelector,
 		To: reference.To{

@@ -23,8 +23,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/reference"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	kms "github.com/crossplane-contrib/provider-aws/apis/kms/v1alpha1"
+	awsclient "github.com/crossplane-contrib/provider-aws/pkg/clients"
 )
 
 // ResolveReferences of this Secret
@@ -46,4 +48,15 @@ func (mg *Secret) ResolveReferences(ctx context.Context, c client.Reader) error 
 	mg.Spec.ForProvider.KMSKeyID = reference.ToPtrValue(rsp.ResolvedValue)
 	mg.Spec.ForProvider.KMSKeyIDRef = rsp.ResolvedReference
 	return nil
+}
+
+// SecretARN returns a function that returns the ARN of the given secret.
+func SecretARN() reference.ExtractValueFn {
+	return func(mg resource.Managed) string {
+		r, ok := mg.(*Secret)
+		if !ok {
+			return ""
+		}
+		return awsclient.StringValue(r.Status.AtProvider.ARN)
+	}
 }
