@@ -172,6 +172,8 @@ func (e *external) customObserve(ctx context.Context, mg cpresource.Managed) (ma
 	}
 
 	upToDate := len(add) == 0 && len(remove) == 0
+
+	cr.SetConditions(xpv1.Available())
 	return managed.ExternalObservation{
 		ResourceExists:   resourceExists,
 		ResourceUpToDate: upToDate,
