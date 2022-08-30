@@ -14,7 +14,9 @@ limitations under the License.
 package scramsecretassociation
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	svcsdk "github.com/aws/aws-sdk-go/service/kafka"
@@ -160,10 +162,20 @@ func (e *external) customObserve(ctx context.Context, mg cpresource.Managed) (ma
 		resourceExists = count > 0
 	}
 
+	diff := &bytes.Buffer{}
+	for _, v := range add {
+		fmt.Fprintf(diff, "+%v ", awsclient.StringValue(v))
+	}
+
+	for _, v := range remove {
+		fmt.Fprintf(diff, "-%v ", awsclient.StringValue(v))
+	}
+
 	upToDate := len(add) == 0 && len(remove) == 0
 	return managed.ExternalObservation{
 		ResourceExists:   resourceExists,
 		ResourceUpToDate: upToDate,
+		Diff:             diff.String(),
 		//ResourceLateInitialized: !cmp.Equal(&cr.Spec.ForProvider, currentSpec),
 	}, nil
 }
