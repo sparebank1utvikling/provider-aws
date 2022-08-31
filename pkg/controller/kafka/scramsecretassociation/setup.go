@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	cpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -106,6 +107,8 @@ func (e *external) customUpdate(ctx context.Context, mg cpresource.Managed) (man
 		return managed.ExternalUpdate{}, awsclient.Wrap(cpresource.Ignore(IsNotFound, err), errDescribe)
 	}
 
+	spew.Dump("diff", add, remove)
+
 	if len(remove) != 0 {
 		e.client.BatchDisassociateScramSecret(&svcsdk.BatchDisassociateScramSecretInput{
 			ClusterArn:    cr.Spec.ForProvider.ClusterARN,
@@ -116,12 +119,22 @@ func (e *external) customUpdate(ctx context.Context, mg cpresource.Managed) (man
 		}
 	}
 	if len(add) != 0 {
-		_, err := e.client.BatchAssociateScramSecret(&svcsdk.BatchAssociateScramSecretInput{
+		ret, err := e.client.BatchAssociateScramSecret(&svcsdk.BatchAssociateScramSecretInput{
 			ClusterArn:    cr.Spec.ForProvider.ClusterARN,
 			SecretArnList: add,
 		})
+		spew.Dump(ret, err, add, cr.Spec.ForProvider.ClusterARN)
 		if err != nil {
 			return managed.ExternalUpdate{}, awsclient.Wrap(cpresource.Ignore(IsNotFound, err), errUpdate)
+		}
+
+		if len(ret.UnprocessedScramSecrets) > 0 {
+			unprocessedMessage := &bytes.Buffer{}
+			for _, unprocessed := range ret.UnprocessedScramSecrets {
+				fmt.Fprintf(unprocessedMessage, "%s ", unprocessed.GoString())
+			}
+
+			return managed.ExternalUpdate{}, fmt.Errorf("cannot update ScramSecretAssociation has unprocessed secrets: %v", unprocessedMessage.String())
 		}
 
 	}
