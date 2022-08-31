@@ -24,7 +24,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	cpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -107,8 +106,6 @@ func (e *external) customUpdate(ctx context.Context, mg cpresource.Managed) (man
 		return managed.ExternalUpdate{}, awsclient.Wrap(cpresource.Ignore(IsNotFound, err), errDescribe)
 	}
 
-	spew.Dump("diff", add, remove)
-
 	if len(remove) != 0 {
 		e.client.BatchDisassociateScramSecret(&svcsdk.BatchDisassociateScramSecretInput{
 			ClusterArn:    cr.Spec.ForProvider.ClusterARN,
@@ -123,7 +120,6 @@ func (e *external) customUpdate(ctx context.Context, mg cpresource.Managed) (man
 			ClusterArn:    cr.Spec.ForProvider.ClusterARN,
 			SecretArnList: add,
 		})
-		spew.Dump(ret, err, add, cr.Spec.ForProvider.ClusterARN)
 		if err != nil {
 			return managed.ExternalUpdate{}, awsclient.Wrap(cpresource.Ignore(IsNotFound, err), errUpdate)
 		}
