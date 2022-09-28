@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	svcsdk "github.com/aws/aws-sdk-go/service/kafka"
@@ -102,6 +103,24 @@ func zooKeeperToClusterEndpoint(connString string, srcPort, dstPort string) stri
 	return strings.Join(parts, ",")
 }
 
+func zooKeeperToClusterEndpointList(connString string, srcPort, dstPort string) []string {
+	re := regexp.MustCompile(fmt.Sprintf(`^z(\S+):%s`, srcPort))
+	parts := make([]string, 0, 3)
+	for _, s := range strings.Split(connString, ",") {
+		parts = append(parts, re.ReplaceAllString(s, fmt.Sprintf("b$1:%s", dstPort)))
+	}
+
+	return parts
+}
+
+func addEndpointsToDict(prefix string, endpoints []string, dict map[string][]byte) map[string][]byte {
+	for i, endpoint := range endpoints {
+
+		dict[prefix+strconv.Itoa(i+1)] = []byte(endpoint)
+	}
+	return dict
+}
+
 func postObserve(_ context.Context, cr *svcapitypes.Cluster, obj *svcsdk.DescribeClusterOutput, obs managed.ExternalObservation, err error) (managed.ExternalObservation, error) {
 	if err != nil {
 		return managed.ExternalObservation{}, err
@@ -120,6 +139,7 @@ func postObserve(_ context.Context, cr *svcapitypes.Cluster, obj *svcsdk.Describ
 	clusterEndpointPlain := []byte(zooKeeperToClusterEndpoint(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9092"))
 	clusterEndpointTLS := []byte(zooKeeperToClusterEndpoint(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9094"))
 	clusterEndpointIAM := []byte(zooKeeperToClusterEndpoint(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9098"))
+	clusterEndpointSCRAM := []byte(zooKeeperToClusterEndpoint(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9096"))
 
 	obs.ConnectionDetails = managed.ConnectionDetails{
 		// see: https://docs.aws.amazon.com/msk/latest/developerguide/client-access.html
@@ -129,7 +149,19 @@ func postObserve(_ context.Context, cr *svcapitypes.Cluster, obj *svcsdk.Describ
 		"clusterEndpointPlain":   clusterEndpointPlain,
 		"clusterEndpointTls":     clusterEndpointTLS,
 		"clusterEndpointIAM":     clusterEndpointIAM,
+		"clusterEndpointSCRAM":   clusterEndpointSCRAM,
 	}
+
+	// Add individual keys for each endpoint broker node
+	clusterEndpointPlainList := zooKeeperToClusterEndpointList(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9092")
+	clusterEndpointTLSList := zooKeeperToClusterEndpointList(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9094")
+	clusterEndpointIAMList := zooKeeperToClusterEndpointList(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9098")
+	clusterEndpointSCRAMList := zooKeeperToClusterEndpointList(awsclients.StringValue(obj.ClusterInfo.ZookeeperConnectString), "2181", "9096")
+
+	obs.ConnectionDetails = addEndpointsToDict("clusterEndpointPlain", clusterEndpointPlainList, obs.ConnectionDetails)
+	obs.ConnectionDetails = addEndpointsToDict("clusterEndpointTls", clusterEndpointTLSList, obs.ConnectionDetails)
+	obs.ConnectionDetails = addEndpointsToDict("clusterEndpointIAM", clusterEndpointIAMList, obs.ConnectionDetails)
+	obs.ConnectionDetails = addEndpointsToDict("clusterEndpointSCRAM", clusterEndpointSCRAMList, obs.ConnectionDetails)
 
 	return obs, nil
 }
