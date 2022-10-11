@@ -151,4 +151,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.0 // indirect
 )
 
-replace github.com/crossplane/crossplane-runtime => github.com/chlunde/crossplane-runtime v0.18.0-rc.0.0.20221007125947-3170848be18f
+replace github.com/crossplane/crossplane-runtime => github.com/chlunde/crossplane-runtime v0.18.0-rc.0.0.20221011201608-67faf0dce3bf
