@@ -42,6 +42,7 @@ import (
 	"github.com/crossplane-contrib/provider-aws/apis/v1alpha1"
 	awsclient "github.com/crossplane-contrib/provider-aws/pkg/clients"
 	"github.com/crossplane-contrib/provider-aws/pkg/clients/ec2"
+	"github.com/crossplane-contrib/provider-aws/pkg/controller/filter"
 	"github.com/crossplane-contrib/provider-aws/pkg/features"
 )
 
@@ -75,6 +76,7 @@ func SetupSecurityGroup(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
+		WithEventFilter(filter.Filter).
 		For(&v1beta1.SecurityGroup{}).
 		Complete(managed.NewReconciler(mgr,
 			resource.ManagedKind(v1beta1.SecurityGroupGroupVersionKind),

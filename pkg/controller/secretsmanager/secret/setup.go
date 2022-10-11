@@ -41,6 +41,7 @@ import (
 	svcapitypes "github.com/crossplane-contrib/provider-aws/apis/secretsmanager/v1beta1"
 	"github.com/crossplane-contrib/provider-aws/apis/v1alpha1"
 	awsclients "github.com/crossplane-contrib/provider-aws/pkg/clients"
+	"github.com/crossplane-contrib/provider-aws/pkg/controller/filter"
 	"github.com/crossplane-contrib/provider-aws/pkg/features"
 )
 
@@ -88,6 +89,7 @@ func SetupSecret(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
+		WithEventFilter(filter.Filter).
 		For(&svcapitypes.Secret{}).
 		Complete(managed.NewReconciler(mgr,
 			resource.ManagedKind(svcapitypes.SecretGroupVersionKind),

@@ -19,6 +19,7 @@ import (
 	svcapitypes "github.com/crossplane-contrib/provider-aws/apis/kms/v1alpha1"
 	"github.com/crossplane-contrib/provider-aws/apis/v1alpha1"
 	awsclients "github.com/crossplane-contrib/provider-aws/pkg/clients"
+	"github.com/crossplane-contrib/provider-aws/pkg/controller/filter"
 	"github.com/crossplane-contrib/provider-aws/pkg/features"
 )
 
@@ -48,6 +49,7 @@ func SetupKey(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
+		WithEventFilter(filter.Filter).
 		For(&svcapitypes.Key{}).
 		Complete(managed.NewReconciler(mgr,
 			resource.ManagedKind(svcapitypes.KeyGroupVersionKind),
