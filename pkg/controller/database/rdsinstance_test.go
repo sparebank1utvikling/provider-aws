@@ -164,6 +164,14 @@ func withBackupRetentionPeriod(i int) rdsModifier {
 	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.BackupRetentionPeriod = &i }
 }
 
+func withAvailabilityZone(az string) rdsModifier {
+	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.AvailabilityZone = &az }
+}
+
+func withMultiAZ(multiAZ bool) rdsModifier {
+	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.MultiAZ = &multiAZ }
+}
+
 func withPreferredBackupWindow(s string) rdsModifier {
 	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.PreferredBackupWindow = &s }
 }
@@ -260,6 +268,36 @@ func TestObserve(t *testing.T) {
 					withMaxAllocatedStorage(100),
 					withAllocatedStorage(20),
 					withStatusAllocatedStorage(30),
+					withConditions(xpv1.Available()),
+					withDBInstanceStatus(string(v1beta1.RDSInstanceStateAvailable))),
+				result: managed.ExternalObservation{
+					ResourceExists:    true,
+					ResourceUpToDate:  true,
+					ConnectionDetails: rds.GetConnectionDetails(v1beta1.RDSInstance{}),
+				},
+			},
+		},
+		"MultiAZWithoutAZIsUpToDate": {
+			args: args{
+				rds: &fake.MockRDSClient{
+					MockDescribe: func(ctx context.Context, input *awsrds.DescribeDBInstancesInput, opts []func(*awsrds.Options)) (*awsrds.DescribeDBInstancesOutput, error) {
+						return &awsrds.DescribeDBInstancesOutput{
+							DBInstances: []awsrdstypes.DBInstance{
+								{
+									DBInstanceStatus: aws.String(string(v1beta1.RDSInstanceStateAvailable)),
+									AvailabilityZone: aws.String("az-1"),
+									MultiAZ:          true,
+								},
+							},
+						}, nil
+					},
+				},
+				cr: instance(withAvailabilityZone("az-2"), withMultiAZ(true)),
+			},
+			want: want{
+				cr: instance(
+					withAvailabilityZone("az-2"), // or should the controller modify spec?
+					withMultiAZ(true),
 					withConditions(xpv1.Available()),
 					withDBInstanceStatus(string(v1beta1.RDSInstanceStateAvailable))),
 				result: managed.ExternalObservation{

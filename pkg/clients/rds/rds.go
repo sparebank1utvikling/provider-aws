@@ -344,6 +344,11 @@ func CreatePatch(in *rdstypes.DBInstance, target *v1beta1.RDSInstanceParameters)
 		currentParams.AllocatedStorage = target.AllocatedStorage
 	}
 
+	// AZ is a status field when using multi-AZ
+	if aws.ToBool(target.MultiAZ) {
+		currentParams.AvailabilityZone = target.AvailabilityZone
+	}
+
 	// AWS Backup takes ownership of backupRetentionPeriod and
 	// preferredBackupWindow if it is in use, so we need to exclude
 	// the field in the diff
