@@ -10,7 +10,7 @@ env:
   GOLANGCI_VERSION: 'v1.47.1'
   DOCKER_BUILDX_VERSION: 'v0.8.2'
 
-  SB1_VERSION: "0.32-sb1-11"
+  SB1_VERSION: "0.32-sb1-12"
 
 jobs:
   build-image:
