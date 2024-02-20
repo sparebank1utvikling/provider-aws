@@ -14,6 +14,10 @@ env:
 
 jobs:
   build-image:
+    permissions:
+      packages: write
+      contents: read
+
     name: Push Docker image to GitHub Packages
     runs-on: ubuntu-20.04
     steps:
@@ -72,12 +76,8 @@ jobs:
           CHANNEL: "master"
           DOCKER_REGISTRY: ghcr.io/sparebank1utvikling
 
-      - name: Login to Docker
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.CR_PAT }}
+      - name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Disable arm64
         run:  sed -i s,linux_arm64,, cluster/images/*/Makefile
