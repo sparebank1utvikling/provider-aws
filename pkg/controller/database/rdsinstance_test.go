@@ -863,11 +863,30 @@ func TestUpdate(t *testing.T) {
 						}, nil
 					},
 				},
+				cr: instance(withBackupRetentionPeriod(7)),
+			},
+			want: want{
+				cr:  instance(withBackupRetentionPeriod(7)),
+				err: awsclient.Wrap(errBoom, errModifyFailed),
+			},
+		},
+		"NotCallingModifyWithoutModifications": {
+			args: args{
+				rds: &fake.MockRDSClient{
+					MockModify: func(ctx context.Context, input *awsrds.ModifyDBInstanceInput, opts []func(*awsrds.Options)) (*awsrds.ModifyDBInstanceOutput, error) {
+						return nil, errors.New("should not be called")
+					},
+					MockDescribe: func(ctx context.Context, input *awsrds.DescribeDBInstancesInput, opts []func(*awsrds.Options)) (*awsrds.DescribeDBInstancesOutput, error) {
+						return &awsrds.DescribeDBInstancesOutput{
+							DBInstances: []awsrdstypes.DBInstance{{}},
+						}, nil
+					},
+				},
 				cr: instance(),
 			},
 			want: want{
 				cr:  instance(),
-				err: awsclient.Wrap(errBoom, errModifyFailed),
+				err: nil,
 			},
 		},
 		"FailedAddTags": {

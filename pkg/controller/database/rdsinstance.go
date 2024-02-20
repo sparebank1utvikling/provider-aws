@@ -18,6 +18,7 @@ package database
 
 import (
 	"context"
+	"log"
 	"reflect"
 	"sort"
 
@@ -242,10 +243,18 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalUpdate{}, awsclient.Wrap(err, errDescribeFailed)
 	}
+
 	patch, err := rds.CreatePatch(&rsp.DBInstances[0], &cr.Spec.ForProvider)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errPatchCreationFailed)
 	}
+
+	upToDate, err := rds.IsUpToDate(ctx, e.kube, cr, rsp.DBInstances[0])
+	if len(patch.Tags) == 0 && upToDate && err == nil {
+		log.Println(cr.Name, "up to date after DescribeDBInstances")
+		return managed.ExternalUpdate{}, nil
+	}
+
 	modify := rds.GenerateModifyDBInstanceInput(meta.GetExternalName(cr), patch, cr.Spec.ForProvider.EnableCloudwatchLogsExports, rsp.DBInstances[0].EnabledCloudwatchLogsExports)
 	var conn managed.ConnectionDetails
 
