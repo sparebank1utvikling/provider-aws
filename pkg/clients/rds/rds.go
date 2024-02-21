@@ -330,6 +330,12 @@ func CreatePatch(in *rdstypes.DBInstance, target *v1beta1.RDSInstanceParameters)
 		target.EnableCloudwatchLogsExports = append(target.EnableCloudwatchLogsExports, add...)
 	}
 	LateInitialize(currentParams, in)
+	for _, val := range in.TagList {
+		currentParams.Tags = append(currentParams.Tags, v1beta1.Tag{
+			Key:   aws.ToString(val.Key),
+			Value: aws.ToString(val.Value),
+		})
+	}
 
 	// Don't attempt to scale down storage if autoscaling is enabled,
 	// and the current storage is larger than what was once
@@ -371,6 +377,14 @@ func CreatePatch(in *rdstypes.DBInstance, target *v1beta1.RDSInstanceParameters)
 		return nil, err
 	}
 	patch.CloudwatchLogsExportConfiguration = nil // handled above, legacy parameter
+
+	// if the tags are identical, we don't want to send them to the AWS API
+	if cmp.Equal(currentParams.Tags, target.Tags, cmpopts.SortSlices(func(a, b v1beta1.Tag) bool {
+		return a.Key < b.Key
+	})) {
+		patch.Tags = nil
+	}
+
 	return patch, nil
 }
 

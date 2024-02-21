@@ -889,6 +889,27 @@ func TestUpdate(t *testing.T) {
 				err: nil,
 			},
 		},
+		"NotCallingModifyWithoutModificationsTagCheck": {
+			args: args{
+				rds: &fake.MockRDSClient{
+					MockModify: func(ctx context.Context, input *awsrds.ModifyDBInstanceInput, opts []func(*awsrds.Options)) (*awsrds.ModifyDBInstanceOutput, error) {
+						return nil, errors.New("should not be called")
+					},
+					MockDescribe: func(ctx context.Context, input *awsrds.DescribeDBInstancesInput, opts []func(*awsrds.Options)) (*awsrds.DescribeDBInstancesOutput, error) {
+						return &awsrds.DescribeDBInstancesOutput{
+							DBInstances: []awsrdstypes.DBInstance{{
+								TagList: []awsrdstypes.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}},
+							}},
+						}, nil
+					},
+				},
+				cr: instance(withTags(map[string]string{"foo": "bar"})),
+			},
+			want: want{
+				cr:  instance(withTags(map[string]string{"foo": "bar"})),
+				err: nil,
+			},
+		},
 		"FailedAddTags": {
 			args: args{
 				rds: &fake.MockRDSClient{
