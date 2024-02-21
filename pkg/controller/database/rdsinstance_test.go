@@ -184,6 +184,14 @@ func withStatusAWSBackupRecoveryPointARN(s string) rdsModifier {
 	return func(r *v1beta1.RDSInstance) { r.Status.AtProvider.AWSBackupRecoveryPointARN = s }
 }
 
+func withAllowMajorVersionUpgrade(b bool) rdsModifier {
+	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.AllowMajorVersionUpgrade = &b }
+}
+
+func withApplyModificationsImmediately(b bool) rdsModifier {
+	return func(r *v1beta1.RDSInstance) { r.Spec.ForProvider.ApplyModificationsImmediately = &b }
+}
+
 func instance(m ...rdsModifier) *v1beta1.RDSInstance {
 	falseFlag := false
 	cr := &v1beta1.RDSInstance{
@@ -907,6 +915,25 @@ func TestUpdate(t *testing.T) {
 			},
 			want: want{
 				cr:  instance(withTags(map[string]string{"foo": "bar"})),
+				err: nil,
+			},
+		},
+		"NotCallingModifyWithoutModificationsMajorVersionUpgrade": {
+			args: args{
+				rds: &fake.MockRDSClient{
+					MockModify: func(ctx context.Context, input *awsrds.ModifyDBInstanceInput, opts []func(*awsrds.Options)) (*awsrds.ModifyDBInstanceOutput, error) {
+						return nil, errors.New("should not be called")
+					},
+					MockDescribe: func(ctx context.Context, input *awsrds.DescribeDBInstancesInput, opts []func(*awsrds.Options)) (*awsrds.DescribeDBInstancesOutput, error) {
+						return &awsrds.DescribeDBInstancesOutput{
+							DBInstances: []awsrdstypes.DBInstance{{}},
+						}, nil
+					},
+				},
+				cr: instance(withAllowMajorVersionUpgrade(true), withApplyModificationsImmediately(true)),
+			},
+			want: want{
+				cr:  instance(withAllowMajorVersionUpgrade(true), withApplyModificationsImmediately(true)),
 				err: nil,
 			},
 		},
