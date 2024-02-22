@@ -30,6 +30,7 @@ require (
 	github.com/barkimedes/go-deepcopy v0.0.0-20220514131651-17c30cfc62df
 	github.com/crossplane/crossplane-runtime v0.17.0-rc.0.0.20220616115400-a520b60f1661
 	github.com/crossplane/crossplane-tools v0.0.0-20220310165030-1f43fc12793e
+	github.com/davecgh/go-spew v1.1.1
 	github.com/evanphx/json-patch v4.12.0+incompatible
 	github.com/go-ini/ini v1.46.0
 	github.com/golang/mock v1.5.0
@@ -67,7 +68,6 @@ require (
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/dave/jennifer v1.4.1 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/logr v1.2.0 // indirect

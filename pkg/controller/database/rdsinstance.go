@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsrds "github.com/aws/aws-sdk-go-v2/service/rds"
 	awsrdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -250,12 +251,20 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	upToDate, err := rds.IsUpToDate(ctx, e.kube, cr, rsp.DBInstances[0])
+	if err != nil {
+		return managed.ExternalUpdate{}, awsclient.Wrap(err, errDescribeFailed)
+	}
+
 	if len(patch.Tags) == 0 && upToDate && err == nil {
 		log.Println(cr.Name, "up to date after DescribeDBInstances")
 		return managed.ExternalUpdate{}, nil
 	}
 
+	log.Println(cr.Name, "not up to date after DescribeDBInstances", patch.Tags, upToDate)
+	spew.Dump(patch)
+
 	modify := rds.GenerateModifyDBInstanceInput(meta.GetExternalName(cr), patch, cr.Spec.ForProvider.EnableCloudwatchLogsExports, rsp.DBInstances[0].EnabledCloudwatchLogsExports)
+	spew.Dump(modify)
 	var conn managed.ConnectionDetails
 
 	pwd, changed, err := rds.GetPassword(ctx, e.kube, cr.Spec.ForProvider.MasterPasswordSecretRef, cr.Spec.WriteConnectionSecretToReference)
@@ -263,6 +272,7 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, err
 	}
 	if changed {
+		log.Println(cr.Name, "password changed")
 		conn = managed.ConnectionDetails{
 			xpv1.ResourceCredentialsSecretPasswordKey: []byte(pwd),
 		}
