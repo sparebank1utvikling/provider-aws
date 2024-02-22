@@ -18,14 +18,15 @@ package database
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"os"
 	"reflect"
 	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsrds "github.com/aws/aws-sdk-go-v2/service/rds"
 	awsrdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -261,10 +262,9 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	log.Println(cr.Name, "not up to date after DescribeDBInstances", patch.Tags, upToDate)
-	spew.Dump(patch)
 
 	modify := rds.GenerateModifyDBInstanceInput(meta.GetExternalName(cr), patch, cr.Spec.ForProvider.EnableCloudwatchLogsExports, rsp.DBInstances[0].EnabledCloudwatchLogsExports)
-	spew.Dump(modify)
+	json.NewEncoder(os.Stdout).Encode(modify)
 	var conn managed.ConnectionDetails
 
 	pwd, changed, err := rds.GetPassword(ctx, e.kube, cr.Spec.ForProvider.MasterPasswordSecretRef, cr.Spec.WriteConnectionSecretToReference)

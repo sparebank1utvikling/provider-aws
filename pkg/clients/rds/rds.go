@@ -350,11 +350,6 @@ func CreatePatch(in *rdstypes.DBInstance, target *v1beta1.RDSInstanceParameters)
 		currentParams.AllocatedStorage = target.AllocatedStorage
 	}
 
-	// AZ is a status field when using multi-AZ
-	if aws.ToBool(target.MultiAZ) {
-		currentParams.AvailabilityZone = target.AvailabilityZone
-	}
-
 	// AWS Backup takes ownership of backupRetentionPeriod and
 	// preferredBackupWindow if it is in use, so we need to exclude
 	// the field in the diff
@@ -376,6 +371,9 @@ func CreatePatch(in *rdstypes.DBInstance, target *v1beta1.RDSInstanceParameters)
 	if err := json.Unmarshal(jsonPatch, patch); err != nil {
 		return nil, err
 	}
+
+	// AZ is a status field
+	patch.AvailabilityZone = nil
 	patch.CloudwatchLogsExportConfiguration = nil // handled above, legacy parameter
 
 	// if the tags are identical, we don't want to send them to the AWS API
@@ -720,17 +718,10 @@ func IsUpToDate(ctx context.Context, kube client.Client, r *v1beta1.RDSInstance,
 	if err != nil {
 		return false, err
 	}
+
 	patch, err := CreatePatch(&db, &r.Spec.ForProvider)
 	if err != nil {
 		return false, err
-	}
-
-	// CreatePatch is not suited in the case where we want to disable
-	// all logs, because it assumes an empty patch means no change,
-	// not to go to the "null" state
-	add, remove := stringDiff(r.Spec.ForProvider.EnableCloudwatchLogsExports, db.EnabledCloudwatchLogsExports)
-	if len(add) > 0 || len(remove) > 0 {
-		return false, nil
 	}
 
 	diff := cmp.Diff(&v1beta1.RDSInstanceParameters{}, patch, cmpopts.EquateEmpty(),
@@ -744,10 +735,22 @@ func IsUpToDate(ctx context.Context, kube client.Client, r *v1beta1.RDSInstance,
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "AllowMajorVersionUpgrade"),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "MasterPasswordSecretRef"),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "CloudwatchLogsExportConfiguration"),
+		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "AvailabilityZone"),
 	)
 	if diff != "" {
-		log.Println(r.ObjectMeta.Name, diff)
+		log.Println(r.Name, diff)
 	}
+
+	// CreatePatch is not suited in the case where we want to disable
+	// all logs, because it assumes an empty patch means no change,
+	// not to go to the "null" state
+	add, remove := stringDiff(r.Spec.ForProvider.EnableCloudwatchLogsExports, db.EnabledCloudwatchLogsExports)
+	if len(add) > 0 || len(remove) > 0 {
+		log.Println(r.Name, "cloudwatch logs changed")
+		return false, nil
+	}
+
+	log.Println(r.Name, "len(diff)", "pwdChanged", pwdChanged)
 
 	return diff == "" && !pwdChanged, nil
 }
