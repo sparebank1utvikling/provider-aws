@@ -1102,6 +1102,9 @@ spec:
                           type: string
                       type: object
                     type: array
+                    x-kubernetes-list-map-keys:
+                    - key
+                    x-kubernetes-list-type: map
                   timezone:
                     description: Timezone of the DB instance. The time zone parameter
                       is currently supported only by Microsoft SQL Server (http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.html#SQLServer.Concepts.General.TimeZone).

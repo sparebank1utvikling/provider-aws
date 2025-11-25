@@ -742,6 +742,8 @@ type RDSInstanceParameters struct {
 	// in the Amazon RDS User Guide.
 	// +immutable
 	// +optional
+	// +listType=map
+	// +listMapKey=key
 	Tags []Tag `json:"tags,omitempty"`
 
 	// TODO(muvaf): get this password as input when we have a way of supplying
