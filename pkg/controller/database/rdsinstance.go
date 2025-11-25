@@ -246,6 +246,14 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, awsclient.Wrap(err, errDescribeFailed)
 	}
 
+	if cr.Spec.ForProvider.ApplyModificationsImmediately != nil && !aws.ToBool(cr.Spec.ForProvider.ApplyModificationsImmediately) {
+		// Check if engine version is in pending modifications, if so we will have to wait until it's applied
+		if rsp.DBInstances[0].PendingModifiedValues.EngineVersion != nil {
+			log.Println(cr.Name, "Update: waiting for pending modifications to be applied")
+			return managed.ExternalUpdate{}, nil
+		}
+	}
+
 	patch, err := rds.CreatePatch(&rsp.DBInstances[0], &cr.Spec.ForProvider)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errPatchCreationFailed)

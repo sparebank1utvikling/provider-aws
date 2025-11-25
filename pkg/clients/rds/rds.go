@@ -724,7 +724,8 @@ func IsUpToDate(ctx context.Context, kube client.Client, r *v1beta1.RDSInstance,
 		return false, err
 	}
 
-	diff := cmp.Diff(&v1beta1.RDSInstanceParameters{}, patch, cmpopts.EquateEmpty(),
+	var options = []cmp.Option{
+		cmpopts.EquateEmpty(),
 		cmpopts.IgnoreTypes(&xpv1.Reference{}, &xpv1.Selector{}, []xpv1.Reference{}),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "Region"),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "Tags"),
@@ -736,7 +737,17 @@ func IsUpToDate(ctx context.Context, kube client.Client, r *v1beta1.RDSInstance,
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "MasterPasswordSecretRef"),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "CloudwatchLogsExportConfiguration"),
 		cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "AvailabilityZone"),
-	)
+	}
+
+	if r.Spec.ForProvider.ApplyModificationsImmediately != nil && !aws.ToBool(r.Spec.ForProvider.ApplyModificationsImmediately) {
+		// Check if engine version is in pending modifications, if so we should not consider that value enough to trigger an update
+		if db.PendingModifiedValues.EngineVersion != nil {
+			log.Println(r.Name, "Update: waiting for pending modifications to be applied")
+			options = append(options, cmpopts.IgnoreFields(v1beta1.RDSInstanceParameters{}, "EngineVersion"))
+		}
+	}
+
+	diff := cmp.Diff(&v1beta1.RDSInstanceParameters{}, patch, options...)
 	if diff != "" {
 		log.Println(r.Name, diff)
 	}
