@@ -1100,6 +1100,8 @@ spec:
                             digits, white-space, ''_'', ''.'', ''/'', ''='', ''+'',
                             ''-'' (Java regex: "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-]*)$").'
                           type: string
+                      required:
+                      - key
                       type: object
                     type: array
                     x-kubernetes-list-map-keys:
