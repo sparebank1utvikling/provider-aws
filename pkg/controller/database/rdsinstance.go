@@ -349,8 +349,15 @@ func (t *tagger) Initialize(ctx context.Context, mg resource.Managed) error {
 	for _, t := range cr.Spec.ForProvider.Tags {
 		tagMap[t.Key] = t.Value
 	}
+	changed := false
 	for k, v := range resource.GetExternalTags(mg) {
-		tagMap[k] = v
+		if _, exists := tagMap[k]; !exists || tagMap[k] != v {
+			changed = true
+			tagMap[k] = v
+		}
+	}
+	if !changed {
+		return nil
 	}
 	cr.Spec.ForProvider.Tags = make([]v1beta1.Tag, len(tagMap))
 	i := 0
